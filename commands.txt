@@ -1,0 +1,5 @@
+backend
+.\mvnw.cmd spring-boot:run
+
+web
+npm run dev
