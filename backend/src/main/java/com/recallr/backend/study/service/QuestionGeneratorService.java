@@ -4,8 +4,10 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recallr.backend.ai.service.OllamaService;
+import com.recallr.backend.study.dto.AnswerEvaluation;
 import com.recallr.backend.study.dto.GeneratedQuestion;
 import com.recallr.backend.study.model.QuestionType;
+import com.recallr.backend.study.session.ActiveQuestion;
 import com.recallr.backend.studymaterial.model.StudyMaterial;
 import com.recallr.backend.studymaterial.repository.StudyMaterialRepository;
 
@@ -251,5 +253,83 @@ public class QuestionGeneratorService {
                 }
         }
     }
+
+
+    public AnswerEvaluation evaluateShortAnswer(
+                StudyMaterial material,
+                ActiveQuestion question,
+                String userAnswer
+        ) {
+
+        String prompt = """
+                You are an educational evaluator.
+
+                Evaluate the student's answer using ONLY the provided
+                study material.
+
+                Concept:
+                %s
+
+                Study material:
+                %s
+
+                Question:
+                %s
+
+                Expected answer:
+                %s
+
+                Student answer:
+                %s
+
+                Evaluate conceptual understanding, not exact wording.
+
+                A student may use different words and still be correct
+                if the important concepts are present.
+
+                Return exactly this JSON structure:
+
+                {
+                "score": 0,
+                "correct": false,
+                "feedback": "short feedback for the student",
+                "explanation": "explanation of the correct answer",
+                "expectedAnswer": "a good complete answer",
+                "correctConcepts": [],
+                "missingConcepts": []
+                }
+
+                Rules:
+                - Return ONLY valid JSON.
+                - score must be between 0 and 100.
+                - correct should normally be true when score is 70 or higher.
+                - Do not require exact wording.
+                - Give credit for correct concepts.
+                - Identify important missing concepts.
+                - Do not introduce knowledge outside the study material.
+                - Keep feedback concise and educational.
+                """.formatted(
+                material.getConcept(),
+                material.getContent(),
+                question.question(),
+                question.correctAnswer(),
+                userAnswer
+        );
+
+        String json =
+                ollamaService.generateJson(prompt);
+
+        try {
+                return objectMapper.readValue(
+                        json,
+                        AnswerEvaluation.class
+                );
+        } catch (Exception e) {
+                throw new RuntimeException(
+                        "Failed to parse AI answer evaluation",
+                        e
+                );
+        }
+        }
     
 }

@@ -3,15 +3,22 @@ package com.recallr.backend.study.service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
 
+import com.recallr.backend.study.dto.AnswerEvaluation;
+import com.recallr.backend.study.dto.AnswerRequest;
+import com.recallr.backend.study.dto.AnswerResult;
 import com.recallr.backend.study.dto.GeneratedQuestion;
 import com.recallr.backend.study.dto.StudyQuestion;
 import com.recallr.backend.study.dto.StudySessionRequest;
 import com.recallr.backend.study.dto.StudySessionResponse;
 import com.recallr.backend.study.model.QuestionType;
+import com.recallr.backend.study.session.ActiveQuestion;
+import com.recallr.backend.study.session.ActiveStudySession;
+import com.recallr.backend.study.session.StudySessionStore;
 import com.recallr.backend.studymaterial.model.StudyMaterial;
 import com.recallr.backend.studymaterial.repository.StudyMaterialRepository;
 
@@ -20,28 +27,22 @@ public class StudySessionService {
 
     private final StudyMaterialRepository studyMaterialRepository;
     private final QuestionGeneratorService questionGeneratorService;
+    private final StudySessionStore sessionStore;
 
     public StudySessionService(
             StudyMaterialRepository studyMaterialRepository,
-            QuestionGeneratorService questionGeneratorService
+            QuestionGeneratorService questionGeneratorService,
+            StudySessionStore sessionStore
     ) {
         this.studyMaterialRepository = studyMaterialRepository;
         this.questionGeneratorService = questionGeneratorService;
+        this.sessionStore = sessionStore;
     }
 
     public StudySessionResponse createSession(
             Long sectionId,
             StudySessionRequest request
     ) {
-
-        List<StudyMaterial> materials =
-                studyMaterialRepository.findByCourseSectionId(sectionId);
-
-        if (materials.isEmpty()) {
-            throw new RuntimeException(
-                    "No study materials found for this section"
-            );
-        }
 
         if (request.questionCount() <= 0) {
             throw new IllegalArgumentException(
@@ -56,12 +57,27 @@ public class StudySessionService {
             );
         }
 
+        List<StudyMaterial> materials =
+                studyMaterialRepository.findByCourseSectionId(sectionId);
+
+        if (materials.isEmpty()) {
+            throw new RuntimeException(
+                    "No study materials found for this section"
+            );
+        }
+
         List<StudyMaterial> shuffledMaterials =
                 new ArrayList<>(materials);
 
         Collections.shuffle(shuffledMaterials);
 
-        List<StudyQuestion> questions = new ArrayList<>();
+        String sessionId = UUID.randomUUID().toString();
+
+        List<ActiveQuestion> activeQuestions =
+                new ArrayList<>();
+
+        List<StudyQuestion> publicQuestions =
+                new ArrayList<>();
 
         for (int i = 0; i < request.questionCount(); i++) {
 
@@ -83,21 +99,212 @@ public class StudySessionService {
                             type
                     );
 
-            StudyQuestion question = new StudyQuestion(
-                    i + 1,
-                    material.getId(),
-                    generated.type(),
-                    generated.question(),
-                    generated.options()
-            );
+            String questionId =
+                    UUID.randomUUID().toString();
 
-            questions.add(question);
+            ActiveQuestion activeQuestion =
+                    new ActiveQuestion(
+                            questionId,
+                            material.getId(),
+                            generated.type(),
+                            generated.question(),
+                            generated.options(),
+                            generated.correctOptionIndex(),
+                            generated.correctAnswer(),
+                            generated.explanation()
+                    );
+
+            activeQuestions.add(activeQuestion);
+
+            StudyQuestion publicQuestion =
+                    new StudyQuestion(
+                            questionId,
+                            i + 1,
+                            material.getId(),
+                            generated.type(),
+                            generated.question(),
+                            generated.options()
+                    );
+
+            publicQuestions.add(publicQuestion);
         }
 
+        ActiveStudySession activeSession =
+                new ActiveStudySession(
+                        sessionId,
+                        sectionId,
+                        activeQuestions
+                );
+
+        sessionStore.save(activeSession);
+
         return new StudySessionResponse(
+                sessionId,
                 sectionId,
-                questions.size(),
-                questions
+                publicQuestions.size(),
+                publicQuestions
         );
     }
+
+    public AnswerResult answerQuestion(
+                String sessionId,
+                String questionId,
+                AnswerRequest request
+        ) {
+
+        ActiveStudySession session =
+                sessionStore.findById(sessionId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Study session not found"
+                                )
+                        );
+
+        ActiveQuestion question =
+                session.findQuestion(questionId);
+
+        return switch (question.type()) {
+
+                case MULTIPLE_CHOICE ->
+                        evaluateMultipleChoice(
+                                question,
+                                request
+                        );
+
+                case TRUE_FALSE ->
+                        evaluateTrueFalse(
+                                question,
+                                request
+                        );
+
+                case SHORT_ANSWER ->
+                        evaluateShortAnswer(
+                                question,
+                                request
+                        );
+        };
+        }
+
+        private AnswerResult evaluateMultipleChoice(
+                ActiveQuestion question,
+                AnswerRequest request
+        ) {
+
+        if (request.selectedOptionIndex() == null) {
+                throw new IllegalArgumentException(
+                        "selectedOptionIndex is required"
+                );
+        }
+
+        if (request.selectedOptionIndex() < 0 ||
+                request.selectedOptionIndex() >=
+                        question.options().size()) {
+
+                throw new IllegalArgumentException(
+                        "Invalid option index"
+                );
+        }
+
+        boolean correct =
+                request.selectedOptionIndex()
+                        .equals(question.correctOptionIndex());
+
+        String expectedAnswer =
+                question.options().get(
+                        question.correctOptionIndex()
+                );
+
+        return new AnswerResult(
+                correct,
+                correct ? 100 : 0,
+                correct
+                        ? "Correct!"
+                        : "Incorrect.",
+                question.explanation(),
+                expectedAnswer,
+                List.of(),
+                List.of()
+        );
+        }
+
+
+        private AnswerResult evaluateTrueFalse(
+                ActiveQuestion question,
+                AnswerRequest request
+        ) {
+
+        if (request.answer() == null ||
+                request.answer().isBlank()) {
+                throw new IllegalArgumentException(
+                        "answer is required"
+                );
+        }
+
+        String userAnswer =
+                request.answer().trim();
+
+        if (!userAnswer.equalsIgnoreCase("True") &&
+                !userAnswer.equalsIgnoreCase("False")) {
+                throw new IllegalArgumentException(
+                        "Answer must be True or False"
+                );
+        }
+
+        boolean correct =
+                userAnswer.equalsIgnoreCase(
+                        question.correctAnswer()
+                );
+
+        return new AnswerResult(
+                correct,
+                correct ? 100 : 0,
+                correct
+                        ? "Correct!"
+                        : "Incorrect.",
+                question.explanation(),
+                question.correctAnswer(),
+                List.of(),
+                List.of()
+        );
+        }
+
+
+        private AnswerResult evaluateShortAnswer(
+                ActiveQuestion question,
+                AnswerRequest request
+        ) {
+
+        if (request.answer() == null ||
+                request.answer().isBlank()) {
+                throw new IllegalArgumentException(
+                        "answer is required"
+                );
+        }
+
+        StudyMaterial material =
+                studyMaterialRepository
+                        .findById(question.materialId())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Study material not found"
+                                )
+                        );
+
+        AnswerEvaluation evaluation =
+                questionGeneratorService.evaluateShortAnswer(
+                        material,
+                        question,
+                        request.answer()
+                );
+
+        return new AnswerResult(
+                evaluation.correct(),
+                evaluation.score(),
+                evaluation.feedback(),
+                evaluation.explanation(),
+                evaluation.expectedAnswer(),
+                evaluation.correctConcepts(),
+                evaluation.missingConcepts()
+        );
+        }
 }

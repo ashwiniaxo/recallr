@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.recallr.backend.study.dto.AnswerRequest;
+import com.recallr.backend.study.dto.AnswerResult;
 import com.recallr.backend.study.dto.GeneratedQuestion;
 import com.recallr.backend.study.dto.StudySessionRequest;
 import com.recallr.backend.study.dto.StudySessionResponse;
@@ -52,4 +54,19 @@ public class StudyController {
                 request
         );
     }
+
+    @PostMapping(
+        "/sessions/{sessionId}/questions/{questionId}/answer"
+        )
+        public AnswerResult answerQuestion(
+                @PathVariable String sessionId,
+                @PathVariable String questionId,
+                @RequestBody AnswerRequest request
+        ) {
+        return studySessionService.answerQuestion(
+                sessionId,
+                questionId,
+                request
+        );
+        }
 }
