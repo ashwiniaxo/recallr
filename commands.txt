@@ -1,5 +1,6 @@
 backend
 .\mvnw.cmd clean install
+.\mvnw.cmd clean compile
 .\mvnw.cmd spring-boot:run
 
 web
