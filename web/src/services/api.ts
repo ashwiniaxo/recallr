@@ -9,3 +9,23 @@ export async function checkHealth(): Promise<string> {
 
   return response.text()
 }
+
+export async function askAi(prompt: string): Promise<string> {
+  const response = await fetch(`${API_URL}/ai/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('AI request failed')
+  }
+
+  const data: { response: string } = await response.json()
+
+  return data.response
+}
