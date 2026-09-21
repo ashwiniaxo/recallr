@@ -8,6 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
 
+import com.recallr.backend.progress.service.ProgressService;
 import com.recallr.backend.study.dto.AnswerEvaluation;
 import com.recallr.backend.study.dto.AnswerRequest;
 import com.recallr.backend.study.dto.AnswerResult;
@@ -28,15 +29,18 @@ public class StudySessionService {
     private final StudyMaterialRepository studyMaterialRepository;
     private final QuestionGeneratorService questionGeneratorService;
     private final StudySessionStore sessionStore;
+    private final ProgressService progressService;
 
     public StudySessionService(
             StudyMaterialRepository studyMaterialRepository,
             QuestionGeneratorService questionGeneratorService,
-            StudySessionStore sessionStore
+            StudySessionStore sessionStore,
+            ProgressService progressService
     ) {
         this.studyMaterialRepository = studyMaterialRepository;
         this.questionGeneratorService = questionGeneratorService;
         this.sessionStore = sessionStore;
+        this.progressService = progressService;
     }
 
     public StudySessionResponse createSession(
@@ -163,7 +167,7 @@ public class StudySessionService {
         ActiveQuestion question =
                 session.findQuestion(questionId);
 
-        return switch (question.type()) {
+        AnswerResult result = switch (question.type()) {
 
                 case MULTIPLE_CHOICE ->
                         evaluateMultipleChoice(
@@ -182,7 +186,15 @@ public class StudySessionService {
                                 question,
                                 request
                         );
-        };
+                };
+
+                progressService.recordAnswer(
+                        question.materialId(),
+                        result.score(),
+                        result.correct()
+                );
+
+                return result;
         }
 
         private AnswerResult evaluateMultipleChoice(
