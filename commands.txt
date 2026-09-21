@@ -3,3 +3,9 @@ backend
 
 web
 npm run dev
+
+root commands
+ollama --version
+ollama list
+ollama run qwen3:4b
+
