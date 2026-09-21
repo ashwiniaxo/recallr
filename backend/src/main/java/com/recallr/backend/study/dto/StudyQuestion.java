@@ -4,12 +4,11 @@ import java.util.List;
 
 import com.recallr.backend.study.model.QuestionType;
 
-public record GeneratedQuestion(
+public record StudyQuestion(
+        int questionNumber,
+        Long materialId,
         QuestionType type,
         String question,
-        List<String> options,
-        Integer correctOptionIndex,
-        String correctAnswer,
-        String explanation
+        List<String> options
 ) {
 }

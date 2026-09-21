@@ -38,4 +38,36 @@ public class OllamaService {
 
     private record OllamaResponse(String response) {
     }
+
+    public String generateJson(String prompt) {
+
+        Map<String, Object> request = Map.of(
+                "model", "qwen3:4b",
+                "prompt", prompt,
+                "stream", false,
+                "format", "json",
+                "think", false
+        );
+
+        OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .body(OllamaResponse.class);
+
+        if (response == null) {
+            throw new IllegalStateException(
+                    "No response received from Ollama"
+            );
+        }
+
+        if (response.response() == null ||
+                response.response().isBlank()) {
+            throw new IllegalStateException(
+                    "Ollama returned an empty response"
+            );
+        }
+
+        return response.response();
+    }
 }
