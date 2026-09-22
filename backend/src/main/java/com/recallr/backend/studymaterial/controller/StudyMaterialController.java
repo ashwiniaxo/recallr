@@ -3,9 +3,11 @@ package com.recallr.backend.studymaterial.controller;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,6 +43,30 @@ public class StudyMaterialController {
         return studyMaterialService.createMaterial(
                 sectionId,
                 studyMaterial
+        );
+    }
+
+    @PutMapping("/{materialId}")
+    public StudyMaterial updateMaterial(
+            @PathVariable("sectionId") Long sectionId,
+            @PathVariable("materialId") Long materialId,
+            @RequestBody StudyMaterial studyMaterial
+    ) {
+        return studyMaterialService.updateMaterial(
+                sectionId,
+                materialId,
+                studyMaterial
+        );
+    }
+
+    @DeleteMapping("/{materialId}")
+    public void deleteMaterial(
+            @PathVariable("sectionId") Long sectionId,
+            @PathVariable("materialId") Long materialId
+    ) {
+        studyMaterialService.deleteMaterial(
+                sectionId,
+                materialId
         );
     }
 }

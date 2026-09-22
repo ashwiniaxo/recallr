@@ -1,7 +1,10 @@
 package com.recallr.backend.study.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recallr.backend.ai.service.OllamaService;
 import com.recallr.backend.study.dto.AnswerEvaluation;
@@ -39,6 +42,52 @@ public class QuestionGeneratorService {
                         new RuntimeException("Study material not found")
                 );
 
+
+        String typeInstructions = switch (type) {
+
+                case MULTIPLE_CHOICE -> """
+                        Create a multiple-choice question.
+
+                                IMPORTANT:
+                                - Provide exactly 4 answer options.
+                                - Exactly ONE option must fully answer the question.
+                                - The other 3 options must be clearly incorrect according
+                                to the study material.
+                                - Never create a question where multiple options are
+                                individually correct.
+                                - Never split a multi-part correct answer across several options.
+                                - If the answer contains several elements, put ALL required
+                                elements together in the single correct option.
+                                - All 4 options must be different.
+                                - Do not use duplicate options.
+                                - Avoid "all of the above" and "none of the above".
+                                - correctOptionIndex must identify the ONE fully correct option.
+                                - correctOptionIndex must be 0, 1, 2, or 3.
+                                - correctAnswer must be null.
+                                """;
+
+                case TRUE_FALSE -> """
+                        Transform ONE fact from the study material into a
+                        declarative statement.
+
+                        The statement itself must be either true or false.
+
+                        IMPORTANT:
+                        - Write an AFFIRMATION, not a question.
+                        - Do not ask for a definition.
+                        - Do not use a question mark.
+                        - The student must be able to answer only True or False.
+                        - correctOptionIndex must be null.
+                        - correctAnswer MUST be either "True" or "False".
+                        """;
+
+                case SHORT_ANSWER -> """
+                        Create an open-ended short-answer question.
+                        options must be [].
+                        correctOptionIndex must be null.
+                        correctAnswer must contain a concise expected answer.
+                        """;
+        };
         String prompt = """
                 You are a study question generator.
 
@@ -54,10 +103,12 @@ public class QuestionGeneratorService {
                 Question type:
                 %s
 
+                Specific instructions:
+                %s
+
                 Return exactly this JSON structure:
 
                 {
-                "type": "%s",
                 "question": "question text",
                 "options": [],
                 "correctOptionIndex": null,
@@ -71,28 +122,15 @@ public class QuestionGeneratorService {
                 - Do not add additional fields.
                 - Do not use Markdown.
                 - Use only the provided study material.
-
-                For MULTIPLE_CHOICE:
-                - Provide exactly 4 options.
-                - Exactly one option must be correct.
-                - correctOptionIndex must be the zero-based index
-                of the correct option: 0, 1, 2, or 3.
-                - correctAnswer must be null.
-
-                For TRUE_FALSE:
-                - options must be ["True", "False"].
-                - correctOptionIndex must be null.
-                - correctAnswer must be exactly "True" or "False".
-
-                For SHORT_ANSWER:
-                - options must be [].
-                - correctOptionIndex must be null.
-                - correctAnswer must contain a concise expected answer.
+                - Detect the language used in the study material.
+                - Write ALL user-facing text in that same language.
+                - Never switch to another language.
+                - If the study material is in French, everything must be written in French.
                 """.formatted(
                 material.getConcept(),
                 material.getContent(),
                 type,
-                type
+                typeInstructions
         );
 
         Exception lastException = null;
@@ -110,15 +148,55 @@ public class QuestionGeneratorService {
 
                 System.out.println(aiResponse);
 
+                JsonNode json =
+                        objectMapper.readTree(aiResponse);
+
+                List<String> options =
+                        objectMapper.convertValue(
+                                json.get("options"),
+                                objectMapper
+                                        .getTypeFactory()
+                                        .constructCollectionType(
+                                                List.class,
+                                                String.class
+                                        )
+                        );
+
+                Integer correctOptionIndex =
+                        json.get("correctOptionIndex").isNull()
+                                ? null
+                                : json.get("correctOptionIndex").asInt();
+
+                String correctAnswer =
+                        json.get("correctAnswer").isNull()
+                                ? null
+                                : json.get("correctAnswer").asText();
+
+                String questionText = json.get("question").asText();
+                if (type == QuestionType.TRUE_FALSE) {
+                options = List.of("True", "False");
+                correctOptionIndex = null;
+
+                questionText =
+                        normalizeTrueFalseStatement(
+                                questionText
+                        );
+                }
+
                 GeneratedQuestion question =
-                        objectMapper.readValue(
-                                aiResponse,
-                                GeneratedQuestion.class
+                        new GeneratedQuestion(
+                                type,
+                                questionText,
+                                options,
+                                correctOptionIndex,
+                                correctAnswer,
+                                json.get("explanation").asText()
                         );
 
                 validateQuestion(question, type);
 
                 return question;
+
 
             } catch (Exception e) {
 
@@ -203,30 +281,36 @@ public class QuestionGeneratorService {
 
                 case TRUE_FALSE -> {
 
-                if (question.options() == null ||
-                        question.options().size() != 2 ||
-                        !question.options().contains("True") ||
-                        !question.options().contains("False")) {
+                        if (question.question().contains("?")) {
+                                throw new IllegalArgumentException(
+                                "True/False must be a statement, not a question"
+                                );
+                        }
 
-                        throw new IllegalArgumentException(
+                        if (question.options() == null ||
+                                question.options().size() != 2 ||
+                                !question.options().contains("True") ||
+                                !question.options().contains("False")) {
+
+                                throw new IllegalArgumentException(
                                 "True/False options must be True and False"
-                        );
-                }
+                                );
+                        }
 
-                if (question.correctOptionIndex() != null) {
-                        throw new IllegalArgumentException(
+                        if (question.correctOptionIndex() != null) {
+                                throw new IllegalArgumentException(
                                 "True/False correctOptionIndex must be null"
-                        );
-                }
+                                );
+                        }
 
-                if (question.correctAnswer() == null ||
-                        (!question.correctAnswer().equals("True") &&
-                        !question.correctAnswer().equals("False"))) {
+                        if (question.correctAnswer() == null ||
+                                (!question.correctAnswer().equals("True") &&
+                                !question.correctAnswer().equals("False"))) {
 
-                        throw new IllegalArgumentException(
+                                throw new IllegalArgumentException(
                                 "True/False answer must be True or False"
-                        );
-                }
+                                );
+                        }
                 }
 
                 case SHORT_ANSWER -> {
@@ -335,5 +419,31 @@ public class QuestionGeneratorService {
                 );
         }
         }
+
+        private String normalizeTrueFalseStatement(String text) {
+
+                if (text == null) {
+                        return null;
+                }
+
+                String normalized = text.trim();
+
+                normalized = normalized.replaceAll(
+                        "(?i)\\s*(c['’]est|est-ce)\\s+(vrai\\s+ou\\s+faux|vrai)\\s*\\?\\s*$",
+                        ""
+                );
+
+                normalized = normalized.replaceAll(
+                        "(?i)\\s*(vrai\\s+ou\\s+faux)\\s*\\?\\s*$",
+                        ""
+                );
+
+                normalized = normalized.replaceAll(
+                        "(?i)\\s*(true\\s+or\\s+false)\\s*\\?\\s*$",
+                        ""
+                );
+
+                return normalized.trim();
+                }
     
 }

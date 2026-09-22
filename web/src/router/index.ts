@@ -5,6 +5,7 @@ import {
 import DashboardView from '../views/DashboardView.vue'
 import CourseView from '../views/CourseView.vue'
 import StudyView from '../views/StudyView.vue'
+import MaterialsView from '../views/MaterialsView.vue'
 
 
 const router = createRouter({
@@ -26,6 +27,12 @@ const router = createRouter({
         path: '/study/sections/:sectionId',
         name: 'study',
         component: StudyView,
+    },
+
+    {
+        path: '/courses/:courseId/sections/:sectionId/materials',
+        name: 'materials',
+       component: MaterialsView,
     },
   ],
 })

@@ -41,4 +41,59 @@ public class StudyMaterialService {
 
         return studyMaterialRepository.save(studyMaterial);
     }
+
+    public StudyMaterial updateMaterial(
+            Long sectionId,
+            Long materialId,
+            StudyMaterial updatedMaterial
+    ) {
+        StudyMaterial existingMaterial = studyMaterialRepository
+                .findById(materialId)
+                .orElseThrow(() ->
+                        new RuntimeException("Study material not found")
+                );
+
+        if (!existingMaterial
+                .getCourseSection()
+                .getId()
+                .equals(sectionId)) {
+            throw new RuntimeException(
+                    "Study material does not belong to this section"
+            );
+        }
+
+        existingMaterial.setConcept(
+                updatedMaterial.getConcept()
+        );
+
+        existingMaterial.setContent(
+                updatedMaterial.getContent()
+        );
+
+        return studyMaterialRepository.save(
+                existingMaterial
+        );
+    }
+
+    public void deleteMaterial(
+            Long sectionId,
+            Long materialId
+    ) {
+        StudyMaterial existingMaterial = studyMaterialRepository
+                .findById(materialId)
+                .orElseThrow(() ->
+                        new RuntimeException("Study material not found")
+                );
+
+        if (!existingMaterial
+                .getCourseSection()
+                .getId()
+                .equals(sectionId)) {
+            throw new RuntimeException(
+                    "Study material does not belong to this section"
+            );
+        }
+
+        studyMaterialRepository.delete(existingMaterial);
+    }
 }

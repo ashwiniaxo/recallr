@@ -64,6 +64,12 @@ const unstudiedConcepts = computed(() => {
 function startStudying() {
   router.push(`/study/sections/${props.section.id}`)
 }
+
+function viewConcepts() {
+  router.push(
+    `/courses/1/sections/${props.section.id}/materials`,
+  )
+}
 </script>
 
 <template>
@@ -103,12 +109,23 @@ function startStudying() {
       </template>
     </div>
 
-    <button
-    type="button"
-    @click="startStudying"
-    >
-    Étudier
-    </button>
+    <div class="section-actions">
+        <button
+            type="button"
+            class="secondary-button"
+            @click="viewConcepts"
+        >
+            Concepts
+        </button>
+
+        <button
+            type="button"
+            class="primary-button"
+            @click="startStudying"
+        >
+            Étudier
+        </button>
+    </div>
   </article>
 </template>
 
@@ -149,11 +166,25 @@ function startStudying() {
   font-size: 0.9rem;
 }
 
-.section-card button {
+.section-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.section-actions button {
   padding: 0.7rem 1.2rem;
-  border: 0;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.primary-button {
+  border: 0;
+}
+
+.secondary-button {
+  border: 1px solid #ddd;
+  background: white;
 }
 </style>

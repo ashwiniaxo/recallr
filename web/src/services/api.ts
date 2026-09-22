@@ -4,6 +4,8 @@ import type {
   SectionProgress,
   StudySession,
   StudySet,
+  StudyMaterial,
+  StudyMaterialRequest,
 } from '../types/study'
 
 const API_URL = 'http://localhost:8080/api'
@@ -91,6 +93,65 @@ export async function createStudySession(
 
   if (!response.ok) {
     throw new Error('Failed to create study session')
+  }
+
+  return response.json()
+}
+
+export async function getStudyMaterials(
+  sectionId: number,
+): Promise<StudyMaterial[]> {
+  const response = await fetch(
+    `${API_URL}/sections/${sectionId}/materials`,
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to load study materials')
+  }
+
+  return response.json()
+}
+
+export async function createStudyMaterial(
+  sectionId: number,
+  material: StudyMaterialRequest,
+): Promise<StudyMaterial> {
+  const response = await fetch(
+    `${API_URL}/sections/${sectionId}/materials`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(material),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to create study material')
+  }
+
+  return response.json()
+}
+
+export async function updateStudyMaterial(
+  sectionId: number,
+  materialId: number,
+  material: StudyMaterialRequest,
+): Promise<StudyMaterial> {
+  const response = await fetch(
+    `${API_URL}/sections/${sectionId}/materials/${materialId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(material),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to update study material')
   }
 
   return response.json()

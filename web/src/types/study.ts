@@ -49,3 +49,15 @@ export interface CreateStudySessionRequest {
   questionCount: number
   questionTypes: QuestionType[]
 }
+
+export interface StudyMaterial {
+  id: number
+  concept: string
+  content: string
+  createdAt: string
+}
+
+export interface StudyMaterialRequest {
+  concept: string
+  content: string
+}
