@@ -8,6 +8,7 @@ import type {
   StudyMaterialRequest,
   AnswerRequest,
   AnswerResult,
+  StudySessionStatus,
 } from '../types/study'
 
 const API_URL = 'http://localhost:8080/api'
@@ -177,6 +178,21 @@ export async function submitAnswer(
 
   if (!response.ok) {
     throw new Error('Failed to submit answer')
+  }
+
+  return response.json()
+}
+export async function getStudySessionStatus(
+  sessionId: string,
+): Promise<StudySessionStatus> {
+  const response = await fetch(
+    `${API_URL}/study/sessions/${sessionId}`,
+  )
+
+  if (!response.ok) {
+    throw new Error(
+      'Failed to load study session status',
+    )
   }
 
   return response.json()

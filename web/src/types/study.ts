@@ -76,3 +76,15 @@ export interface AnswerResult {
   correctConcepts: string[]
   missingConcepts: string[]
 }
+
+export interface StudySessionStatus {
+  sessionId: string
+  sectionId: number
+  totalQuestions: number
+  answeredQuestions: number
+  remainingQuestions: number
+  correctAnswers: number
+  incorrectAnswers: number
+  averageScore: number
+  completed: boolean
+}

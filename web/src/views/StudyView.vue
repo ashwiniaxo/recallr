@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import {
   createStudySession,
+  getStudySessionStatus,
   submitAnswer,
 } from '../services/api'
 
@@ -11,6 +12,7 @@ import type {
   AnswerResult,
   QuestionType,
   StudySession,
+  StudySessionStatus,
 } from '../types/study'
 
 const route = useRoute()
@@ -54,7 +56,10 @@ const textAnswer = ref('')
  * Résultat de la correction
  */
 const answerResult = ref<AnswerResult | null>(null)
+const sessionStatus =
+  ref<StudySessionStatus | null>(null)
 
+const loadingSummary = ref(false)
 const submitting = ref(false)
 
 const answerError = ref('')
@@ -171,6 +176,9 @@ async function validateAnswer() {
             : textAnswer.value,
       },
     )
+    if (isLastQuestion.value) {
+        await loadSessionSummary()
+    }
   } catch (err) {
     console.error(err)
 
@@ -191,6 +199,27 @@ function resetAnswer() {
   answerError.value = ''
 }
 
+async function loadSessionSummary() {
+  if (!session.value) {
+    return
+  }
+
+  loadingSummary.value = true
+
+  try {
+    sessionStatus.value =
+      await getStudySessionStatus(
+        session.value.sessionId,
+      )
+  } catch (err) {
+    console.error(err)
+
+    answerError.value =
+      'Impossible de charger le résumé.'
+  } finally {
+    loadingSummary.value = false
+  }
+}
 /*
  * Question suivante
  */
@@ -627,20 +656,72 @@ const isLastQuestion = computed(() => {
       <!-- ========================= -->
 
       <div
-        v-if="
-          answerResult &&
-          isLastQuestion
-        "
-        class="session-finished"
-      >
-        <p>
-          Tu as répondu à toutes les questions.
-        </p>
+  v-if="answerResult && isLastQuestion"
+  class="session-finished"
+>
+  <p v-if="loadingSummary">
+    Chargement du résumé...
+  </p>
 
-        <p>
-          Le résumé de la session sera affiché ici.
-        </p>
+  <template v-else-if="sessionStatus">
+    <p class="summary-eyebrow">
+      Session terminée
+    </p>
+
+    <h2>
+      🎉 Résumé de ta session
+    </h2>
+
+    <div class="summary-score">
+      {{ Math.round(sessionStatus.averageScore) }} %
+    </div>
+
+    <p class="summary-label">
+      Score moyen
+    </p>
+
+    <div class="summary-stats">
+      <div class="summary-stat">
+        <strong>
+          {{ sessionStatus.answeredQuestions }}
+          /
+          {{ sessionStatus.totalQuestions }}
+        </strong>
+
+        <span>
+          Questions répondues
+        </span>
       </div>
+
+      <div class="summary-stat">
+        <strong>
+          {{ sessionStatus.correctAnswers }}
+        </strong>
+
+        <span>
+          Bonnes réponses
+        </span>
+      </div>
+
+      <div class="summary-stat">
+        <strong>
+          {{ sessionStatus.incorrectAnswers }}
+        </strong>
+
+        <span>
+          Réponses incorrectes
+        </span>
+      </div>
+    </div>
+
+    <RouterLink
+      to="/courses/1"
+      class="return-button"
+    >
+      Retour au cours
+    </RouterLink>
+  </template>
+</div>
     </section>
   </main>
 </template>
@@ -840,6 +921,84 @@ textarea {
   }
 
   .true-false-options {
+    grid-template-columns: 1fr;
+  }
+}
+.session-finished {
+  margin-top: 2rem;
+  padding: 2rem;
+
+  text-align: center;
+
+  border: 1px solid #ddd;
+  border-radius: 16px;
+}
+
+.summary-eyebrow {
+  margin: 0;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.session-finished h2 {
+  margin: 0.5rem 0 1.5rem;
+}
+
+.summary-score {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.summary-label {
+  margin-top: 0.25rem;
+  color: #666;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 1rem;
+
+  margin: 2rem 0;
+}
+
+.summary-stat {
+  display: grid;
+  gap: 0.4rem;
+
+  padding: 1rem;
+
+  border: 1px solid #ddd;
+  border-radius: 10px;
+}
+
+.summary-stat strong {
+  font-size: 1.4rem;
+}
+
+.summary-stat span {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.return-button {
+  display: inline-block;
+
+  padding: 0.8rem 1.25rem;
+
+  border-radius: 8px;
+
+  text-decoration: none;
+  font-weight: 600;
+
+  border: 1px solid #ddd;
+}
+
+@media (max-width: 600px) {
+  .summary-stats {
     grid-template-columns: 1fr;
   }
 }

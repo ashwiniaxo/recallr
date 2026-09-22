@@ -28,6 +28,19 @@ import com.recallr.backend.studymaterial.repository.StudyMaterialRepository;
 @Service
 public class StudySessionService {
 
+    /*
+     * Évite une boucle infinie si Qwen n'arrive
+     * vraiment pas à générer certaines questions.
+     *
+     * Exemple :
+     * 5 questions demandées
+     * -> maximum 25 générations complètes.
+     *
+     * Chaque génération possède elle-même jusqu'à
+     * 3 essais dans QuestionGeneratorService.
+     */
+    private static final int SESSION_ATTEMPT_MULTIPLIER = 5;
+
     private final StudyMaterialRepository studyMaterialRepository;
     private final QuestionGeneratorService questionGeneratorService;
     private final StudySessionStore sessionStore;
@@ -41,11 +54,20 @@ public class StudySessionService {
             ProgressService progressService,
             AdaptiveStudyService adaptiveStudyService
     ) {
-        this.studyMaterialRepository = studyMaterialRepository;
-        this.questionGeneratorService = questionGeneratorService;
-        this.sessionStore = sessionStore;
-        this.progressService = progressService;
-        this.adaptiveStudyService = adaptiveStudyService;
+        this.studyMaterialRepository =
+                studyMaterialRepository;
+
+        this.questionGeneratorService =
+                questionGeneratorService;
+
+        this.sessionStore =
+                sessionStore;
+
+        this.progressService =
+                progressService;
+
+        this.adaptiveStudyService =
+                adaptiveStudyService;
     }
 
     public StudySessionResponse createSession(
@@ -61,13 +83,17 @@ public class StudySessionService {
 
         if (request.questionTypes() == null ||
                 request.questionTypes().isEmpty()) {
+
             throw new IllegalArgumentException(
                     "At least one question type is required"
             );
         }
 
         List<StudyMaterial> materials =
-                studyMaterialRepository.findByCourseSectionId(sectionId);
+                studyMaterialRepository
+                        .findByCourseSectionId(
+                                sectionId
+                        );
 
         if (materials.isEmpty()) {
             throw new RuntimeException(
@@ -76,11 +102,13 @@ public class StudySessionService {
         }
 
         List<StudyMaterial> prioritizedMaterials =
-                adaptiveStudyService.prioritizeMaterials(
-                        materials
-                );
+                adaptiveStudyService
+                        .prioritizeMaterials(
+                                materials
+                        );
 
-        String sessionId = UUID.randomUUID().toString();
+        String sessionId =
+                UUID.randomUUID().toString();
 
         List<ActiveQuestion> activeQuestions =
                 new ArrayList<>();
@@ -88,54 +116,155 @@ public class StudySessionService {
         List<StudyQuestion> publicQuestions =
                 new ArrayList<>();
 
-        for (int i = 0; i < request.questionCount(); i++) {
-
-        StudyMaterial material =
-                prioritizedMaterials.get(
-                        i % prioritizedMaterials.size()
+        /*
+         * Nombre maximum de générations complètes
+         * autorisées pour construire cette session.
+         */
+        int maxGenerationAttempts =
+                Math.max(
+                        request.questionCount()
+                                * SESSION_ATTEMPT_MULTIPLIER,
+                        request.questionCount()
                 );
+
+        int generationAttempts = 0;
+        int materialIndex = 0;
+
+        while (
+                publicQuestions.size()
+                        < request.questionCount() &&
+                generationAttempts
+                        < maxGenerationAttempts
+        ) {
+
+            StudyMaterial material =
+                    prioritizedMaterials.get(
+                            materialIndex
+                                    % prioritizedMaterials.size()
+                    );
+
+            materialIndex++;
+            generationAttempts++;
 
             QuestionType type =
                     request.questionTypes().get(
-                            ThreadLocalRandom.current().nextInt(
-                                    request.questionTypes().size()
-                            )
+                            ThreadLocalRandom
+                                    .current()
+                                    .nextInt(
+                                            request.questionTypes()
+                                                    .size()
+                                    )
                     );
 
-            GeneratedQuestion generated =
-                    questionGeneratorService.generateQuestion(
-                            material.getId(),
-                            type
-                    );
+            System.out.println(
+                    "Session generation attempt "
+                            + generationAttempts
+                            + "/"
+                            + maxGenerationAttempts
+                            + " - question "
+                            + (publicQuestions.size() + 1)
+                            + "/"
+                            + request.questionCount()
+                            + " - material="
+                            + material.getId()
+                            + " - type="
+                            + type
+            );
 
-            String questionId =
-                    UUID.randomUUID().toString();
+            try {
 
-            ActiveQuestion activeQuestion =
-                    new ActiveQuestion(
-                            questionId,
-                            material.getId(),
-                            generated.type(),
-                            generated.question(),
-                            generated.options(),
-                            generated.correctOptionIndex(),
-                            generated.correctAnswer(),
-                            generated.explanation()
-                    );
+                GeneratedQuestion generated =
+                        questionGeneratorService
+                                .generateQuestion(
+                                        material.getId(),
+                                        type
+                                );
 
-            activeQuestions.add(activeQuestion);
+                String questionId =
+                        UUID.randomUUID()
+                                .toString();
 
-            StudyQuestion publicQuestion =
-                    new StudyQuestion(
-                            questionId,
-                            i + 1,
-                            material.getId(),
-                            generated.type(),
-                            generated.question(),
-                            generated.options()
-                    );
+                ActiveQuestion activeQuestion =
+                        new ActiveQuestion(
+                                questionId,
+                                material.getId(),
+                                generated.type(),
+                                generated.question(),
+                                generated.options(),
+                                generated.correctOptionIndex(),
+                                generated.correctAnswer(),
+                                generated.explanation()
+                        );
 
-            publicQuestions.add(publicQuestion);
+                activeQuestions.add(
+                        activeQuestion
+                );
+
+                /*
+                 * questionNumber dépend maintenant
+                 * du nombre de questions réellement
+                 * générées avec succès.
+                 */
+                int questionNumber =
+                        publicQuestions.size() + 1;
+
+                StudyQuestion publicQuestion =
+                        new StudyQuestion(
+                                questionId,
+                                questionNumber,
+                                material.getId(),
+                                generated.type(),
+                                generated.question(),
+                                generated.options()
+                        );
+
+                publicQuestions.add(
+                        publicQuestion
+                );
+
+            } catch (RuntimeException e) {
+
+                /*
+                 * Une génération invalide ne détruit
+                 * plus toute la session.
+                 */
+                System.out.println(
+                        "Skipping failed question generation"
+                );
+
+                System.out.println(
+                        "Material: "
+                                + material.getId()
+                                + ", type: "
+                                + type
+                );
+
+                System.out.println(
+                        "Reason: "
+                                + e.getMessage()
+                );
+            }
+        }
+
+        /*
+         * Même après plusieurs concepts/types différents,
+         * Recallr n'a pas réussi à obtenir suffisamment
+         * de questions valides.
+         *
+         * On ne crée pas une session incomplète.
+         */
+        if (publicQuestions.size()
+                < request.questionCount()) {
+
+            throw new RuntimeException(
+                    "Unable to generate enough valid questions. "
+                            + "Requested: "
+                            + request.questionCount()
+                            + ", generated: "
+                            + publicQuestions.size()
+                            + ", attempts: "
+                            + generationAttempts
+            );
         }
 
         ActiveStudySession activeSession =
@@ -145,7 +274,9 @@ public class StudySessionService {
                         activeQuestions
                 );
 
-        sessionStore.save(activeSession);
+        sessionStore.save(
+                activeSession
+        );
 
         return new StudySessionResponse(
                 sessionId,
@@ -156,13 +287,14 @@ public class StudySessionService {
     }
 
     public AnswerResult answerQuestion(
-                String sessionId,
-                String questionId,
-                AnswerRequest request
-        ) {
+            String sessionId,
+            String questionId,
+            AnswerRequest request
+    ) {
 
         ActiveStudySession session =
-                sessionStore.findById(sessionId)
+                sessionStore
+                        .findById(sessionId)
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Study session not found"
@@ -170,72 +302,87 @@ public class StudySessionService {
                         );
 
         ActiveQuestion question =
-                session.findQuestion(questionId);
+                session.findQuestion(
+                        questionId
+                );
 
         if (question.isAnswered()) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "This question has already been answered"
-                );
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This question has already been answered"
+            );
         }
 
-        AnswerResult result = switch (question.type()) {
+        /*
+         * On évalue d'abord.
+         *
+         * Si Qwen échoue pendant une SHORT_ANSWER,
+         * la question n'est donc PAS marquée comme répondue.
+         */
+        AnswerResult result =
+                switch (question.type()) {
 
-                case MULTIPLE_CHOICE ->
-                        evaluateMultipleChoice(
-                                question,
-                                request
-                        );
+                    case MULTIPLE_CHOICE ->
+                            evaluateMultipleChoice(
+                                    question,
+                                    request
+                            );
 
-                case TRUE_FALSE ->
-                        evaluateTrueFalse(
-                                question,
-                                request
-                        );
+                    case TRUE_FALSE ->
+                            evaluateTrueFalse(
+                                    question,
+                                    request
+                            );
 
-                case SHORT_ANSWER ->
-                        evaluateShortAnswer(
-                                question,
-                                request
-                        );
+                    case SHORT_ANSWER ->
+                            evaluateShortAnswer(
+                                    question,
+                                    request
+                            );
                 };
 
-                question.markAnswered(
-                        result.score(),
-                        result.correct()
-                );
-                progressService.recordAnswer(
-                        question.materialId(),
-                        result.score(),
-                        result.correct()
-                );
+        /*
+         * Seulement après une évaluation réussie.
+         */
+        question.markAnswered(
+                result.score(),
+                result.correct()
+        );
 
-                return result;
-        }
+        progressService.recordAnswer(
+                question.materialId(),
+                result.score(),
+                result.correct()
+        );
 
-        private AnswerResult evaluateMultipleChoice(
-                ActiveQuestion question,
-                AnswerRequest request
-        ) {
+        return result;
+    }
+
+    private AnswerResult evaluateMultipleChoice(
+            ActiveQuestion question,
+            AnswerRequest request
+    ) {
 
         if (request.selectedOptionIndex() == null) {
-                throw new IllegalArgumentException(
-                        "selectedOptionIndex is required"
-                );
+            throw new IllegalArgumentException(
+                    "selectedOptionIndex is required"
+            );
         }
 
         if (request.selectedOptionIndex() < 0 ||
-                request.selectedOptionIndex() >=
-                        question.options().size()) {
+                request.selectedOptionIndex()
+                        >= question.options().size()) {
 
-                throw new IllegalArgumentException(
-                        "Invalid option index"
-                );
+            throw new IllegalArgumentException(
+                    "Invalid option index"
+            );
         }
 
         boolean correct =
                 request.selectedOptionIndex()
-                        .equals(question.correctOptionIndex());
+                        .equals(
+                                question.correctOptionIndex()
+                        );
 
         String expectedAnswer =
                 question.options().get(
@@ -253,19 +400,19 @@ public class StudySessionService {
                 List.of(),
                 List.of()
         );
-        }
+    }
 
-
-        private AnswerResult evaluateTrueFalse(
-                ActiveQuestion question,
-                AnswerRequest request
-        ) {
+    private AnswerResult evaluateTrueFalse(
+            ActiveQuestion question,
+            AnswerRequest request
+    ) {
 
         if (request.answer() == null ||
                 request.answer().isBlank()) {
-                throw new IllegalArgumentException(
-                        "answer is required"
-                );
+
+            throw new IllegalArgumentException(
+                    "answer is required"
+            );
         }
 
         String userAnswer =
@@ -273,9 +420,10 @@ public class StudySessionService {
 
         if (!userAnswer.equalsIgnoreCase("True") &&
                 !userAnswer.equalsIgnoreCase("False")) {
-                throw new IllegalArgumentException(
-                        "Answer must be True or False"
-                );
+
+            throw new IllegalArgumentException(
+                    "Answer must be True or False"
+            );
         }
 
         boolean correct =
@@ -294,24 +442,26 @@ public class StudySessionService {
                 List.of(),
                 List.of()
         );
-        }
+    }
 
-
-        private AnswerResult evaluateShortAnswer(
-                ActiveQuestion question,
-                AnswerRequest request
-        ) {
+    private AnswerResult evaluateShortAnswer(
+            ActiveQuestion question,
+            AnswerRequest request
+    ) {
 
         if (request.answer() == null ||
                 request.answer().isBlank()) {
-                throw new IllegalArgumentException(
-                        "answer is required"
-                );
+
+            throw new IllegalArgumentException(
+                    "answer is required"
+            );
         }
 
         StudyMaterial material =
                 studyMaterialRepository
-                        .findById(question.materialId())
+                        .findById(
+                                question.materialId()
+                        )
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Study material not found"
@@ -319,11 +469,12 @@ public class StudySessionService {
                         );
 
         AnswerEvaluation evaluation =
-                questionGeneratorService.evaluateShortAnswer(
-                        material,
-                        question,
-                        request.answer()
-                );
+                questionGeneratorService
+                        .evaluateShortAnswer(
+                                material,
+                                question,
+                                request.answer()
+                        );
 
         return new AnswerResult(
                 evaluation.correct(),
@@ -334,14 +485,15 @@ public class StudySessionService {
                 evaluation.correctConcepts(),
                 evaluation.missingConcepts()
         );
-        }
+    }
 
-        public StudySessionStatusResponse getSessionStatus(
-                String sessionId
-        ) {
+    public StudySessionStatusResponse getSessionStatus(
+            String sessionId
+    ) {
 
         ActiveStudySession session =
-                sessionStore.findById(sessionId)
+                sessionStore
+                        .findById(sessionId)
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Study session not found"
@@ -359,5 +511,5 @@ public class StudySessionService {
                 session.getAverageScore(),
                 session.isCompleted()
         );
-        }
+    }
 }
