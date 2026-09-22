@@ -308,6 +308,10 @@ public class QuestionGeneratorService {
                 - Identify important missing concepts.
                 - Do not introduce knowledge outside the study material.
                 - Keep feedback concise and educational.
+                - Use only the provided study material.
+                - Write the question, options, answer, and explanation in the
+                same language as the study material.
+                - Do not switch languages.
                 """.formatted(
                 material.getConcept(),
                 material.getContent(),

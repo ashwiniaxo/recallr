@@ -1,12 +1,13 @@
 package com.recallr.backend.study.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.recallr.backend.progress.service.ProgressService;
 import com.recallr.backend.study.dto.AnswerEvaluation;
@@ -16,6 +17,7 @@ import com.recallr.backend.study.dto.GeneratedQuestion;
 import com.recallr.backend.study.dto.StudyQuestion;
 import com.recallr.backend.study.dto.StudySessionRequest;
 import com.recallr.backend.study.dto.StudySessionResponse;
+import com.recallr.backend.study.dto.StudySessionStatusResponse;
 import com.recallr.backend.study.model.QuestionType;
 import com.recallr.backend.study.session.ActiveQuestion;
 import com.recallr.backend.study.session.ActiveStudySession;
@@ -30,17 +32,20 @@ public class StudySessionService {
     private final QuestionGeneratorService questionGeneratorService;
     private final StudySessionStore sessionStore;
     private final ProgressService progressService;
+    private final AdaptiveStudyService adaptiveStudyService;
 
     public StudySessionService(
             StudyMaterialRepository studyMaterialRepository,
             QuestionGeneratorService questionGeneratorService,
             StudySessionStore sessionStore,
-            ProgressService progressService
+            ProgressService progressService,
+            AdaptiveStudyService adaptiveStudyService
     ) {
         this.studyMaterialRepository = studyMaterialRepository;
         this.questionGeneratorService = questionGeneratorService;
         this.sessionStore = sessionStore;
         this.progressService = progressService;
+        this.adaptiveStudyService = adaptiveStudyService;
     }
 
     public StudySessionResponse createSession(
@@ -70,10 +75,10 @@ public class StudySessionService {
             );
         }
 
-        List<StudyMaterial> shuffledMaterials =
-                new ArrayList<>(materials);
-
-        Collections.shuffle(shuffledMaterials);
+        List<StudyMaterial> prioritizedMaterials =
+                adaptiveStudyService.prioritizeMaterials(
+                        materials
+                );
 
         String sessionId = UUID.randomUUID().toString();
 
@@ -85,10 +90,10 @@ public class StudySessionService {
 
         for (int i = 0; i < request.questionCount(); i++) {
 
-            StudyMaterial material =
-                    shuffledMaterials.get(
-                            i % shuffledMaterials.size()
-                    );
+        StudyMaterial material =
+                prioritizedMaterials.get(
+                        i % prioritizedMaterials.size()
+                );
 
             QuestionType type =
                     request.questionTypes().get(
@@ -167,6 +172,13 @@ public class StudySessionService {
         ActiveQuestion question =
                 session.findQuestion(questionId);
 
+        if (question.isAnswered()) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "This question has already been answered"
+                );
+        }
+
         AnswerResult result = switch (question.type()) {
 
                 case MULTIPLE_CHOICE ->
@@ -188,6 +200,10 @@ public class StudySessionService {
                         );
                 };
 
+                question.markAnswered(
+                        result.score(),
+                        result.correct()
+                );
                 progressService.recordAnswer(
                         question.materialId(),
                         result.score(),
@@ -317,6 +333,31 @@ public class StudySessionService {
                 evaluation.expectedAnswer(),
                 evaluation.correctConcepts(),
                 evaluation.missingConcepts()
+        );
+        }
+
+        public StudySessionStatusResponse getSessionStatus(
+                String sessionId
+        ) {
+
+        ActiveStudySession session =
+                sessionStore.findById(sessionId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Study session not found"
+                                )
+                        );
+
+        return new StudySessionStatusResponse(
+                session.getSessionId(),
+                session.getSectionId(),
+                session.getTotalQuestions(),
+                session.getAnsweredQuestions(),
+                session.getRemainingQuestions(),
+                session.getCorrectAnswers(),
+                session.getIncorrectAnswers(),
+                session.getAverageScore(),
+                session.isCompleted()
         );
         }
 }

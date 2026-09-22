@@ -1,6 +1,7 @@
 package com.recallr.backend.study.controller;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,7 @@ import com.recallr.backend.study.dto.AnswerResult;
 import com.recallr.backend.study.dto.GeneratedQuestion;
 import com.recallr.backend.study.dto.StudySessionRequest;
 import com.recallr.backend.study.dto.StudySessionResponse;
+import com.recallr.backend.study.dto.StudySessionStatusResponse;
 import com.recallr.backend.study.model.QuestionType;
 import com.recallr.backend.study.service.QuestionGeneratorService;
 import com.recallr.backend.study.service.StudySessionService;
@@ -67,6 +69,16 @@ public class StudyController {
                 sessionId,
                 questionId,
                 request
+        );
+        }
+
+
+        @GetMapping("/sessions/{sessionId}")
+        public StudySessionStatusResponse getSessionStatus(
+                @PathVariable String sessionId
+        ) {
+        return studySessionService.getSessionStatus(
+                sessionId
         );
         }
 }

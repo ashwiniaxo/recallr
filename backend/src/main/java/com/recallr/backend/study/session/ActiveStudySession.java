@@ -48,4 +48,53 @@ public class ActiveStudySession {
                         )
                 );
     }
+
+    public int getTotalQuestions() {
+        return questions.size();
+    }
+
+    public int getAnsweredQuestions() {
+        return (int) questions.stream()
+                .filter(ActiveQuestion::isAnswered)
+                .count();
+    }
+
+    public int getRemainingQuestions() {
+        return getTotalQuestions() - getAnsweredQuestions();
+    }
+
+    public boolean isCompleted() {
+        return getTotalQuestions() > 0
+                && getAnsweredQuestions() == getTotalQuestions();
+    }
+
+    public int getCorrectAnswers() {
+    return (int) questions.stream()
+            .filter(ActiveQuestion::isAnswered)
+            .filter(question ->
+                    Boolean.TRUE.equals(
+                            question.getCorrect()
+                    )
+            )
+            .count();
+}
+
+public int getIncorrectAnswers() {
+    return getAnsweredQuestions()
+            - getCorrectAnswers();
+}
+
+    public double getAverageScore() {
+
+        double average = questions.stream()
+                .filter(ActiveQuestion::isAnswered)
+                .filter(question ->
+                        question.getScore() != null
+                )
+                .mapToInt(ActiveQuestion::getScore)
+                .average()
+                .orElse(0.0);
+
+        return Math.round(average * 100.0) / 100.0;
+    }
 }
