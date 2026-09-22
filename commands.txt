@@ -1,4 +1,7 @@
 backend
+$env:DB_URL = "jdbc:postgresql://localhost:5432/recallr"
+$env:DB_USERNAME = "recallr_app"
+$env:DB_PASSWORD = "TON_MOT_DE_PASSE"
 .\mvnw.cmd clean install
 .\mvnw.cmd clean compile
 .\mvnw.cmd spring-boot:run
