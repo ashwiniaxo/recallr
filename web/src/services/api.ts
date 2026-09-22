@@ -6,6 +6,8 @@ import type {
   StudySet,
   StudyMaterial,
   StudyMaterialRequest,
+  AnswerRequest,
+  AnswerResult,
 } from '../types/study'
 
 const API_URL = 'http://localhost:8080/api'
@@ -152,6 +154,29 @@ export async function updateStudyMaterial(
 
   if (!response.ok) {
     throw new Error('Failed to update study material')
+  }
+
+  return response.json()
+}
+
+export async function submitAnswer(
+  sessionId: string,
+  questionId: string,
+  request: AnswerRequest,
+): Promise<AnswerResult> {
+  const response = await fetch(
+    `${API_URL}/study/sessions/${sessionId}/questions/${questionId}/answer`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to submit answer')
   }
 
   return response.json()

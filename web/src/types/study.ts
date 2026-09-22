@@ -61,3 +61,18 @@ export interface StudyMaterialRequest {
   concept: string
   content: string
 }
+
+export interface AnswerRequest {
+  selectedOptionIndex: number | null
+  answer: string | null
+}
+
+export interface AnswerResult {
+  correct: boolean
+  score: number
+  feedback: string
+  explanation: string
+  expectedAnswer: string
+  correctConcepts: string[]
+  missingConcepts: string[]
+}
