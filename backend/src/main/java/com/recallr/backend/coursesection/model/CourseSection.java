@@ -2,6 +2,7 @@ package com.recallr.backend.coursesection.model;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.recallr.backend.studyset.model.StudySet;
 
 import jakarta.persistence.Entity;
@@ -27,6 +28,7 @@ public class CourseSection {
 
     private LocalDateTime createdAt;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "study_set_id", nullable = false)
     private StudySet studySet;

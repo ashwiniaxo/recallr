@@ -4,11 +4,6 @@ export interface StudySet {
   description: string
 }
 
-export interface CourseSection {
-  id: number
-  title: string
-}
-
 export interface ConceptProgress {
   materialId: number
   concept: string
@@ -87,4 +82,20 @@ export interface StudySessionStatus {
   incorrectAnswers: number
   averageScore: number
   completed: boolean
+}
+
+export interface StudySetRequest {
+  title: string
+  description: string
+}
+
+export interface CourseSection {
+  id: number
+  sectionNumber: number
+  title: string
+}
+
+export interface CourseSectionRequest {
+  sectionNumber: number
+  title: string
 }

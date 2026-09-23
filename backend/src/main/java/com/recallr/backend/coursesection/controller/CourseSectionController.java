@@ -3,9 +3,11 @@ package com.recallr.backend.coursesection.controller;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,14 +25,18 @@ public class CourseSectionController {
     public CourseSectionController(
             CourseSectionService courseSectionService
     ) {
-        this.courseSectionService = courseSectionService;
+        this.courseSectionService =
+                courseSectionService;
     }
 
     @GetMapping
     public List<CourseSection> getSections(
             @PathVariable("studySetId") Long studySetId
     ) {
-        return courseSectionService.getSectionsByStudySet(studySetId);
+        return courseSectionService
+                .getSectionsByStudySet(
+                        studySetId
+                );
     }
 
     @PostMapping
@@ -38,9 +44,35 @@ public class CourseSectionController {
             @PathVariable("studySetId") Long studySetId,
             @RequestBody CourseSection courseSection
     ) {
-        return courseSectionService.createSection(
+        return courseSectionService
+                .createSection(
+                        studySetId,
+                        courseSection
+                );
+    }
+
+    @PutMapping("/{sectionId}")
+    public CourseSection updateSection(
+            @PathVariable("studySetId") Long studySetId,
+            @PathVariable("sectionId") Long sectionId,
+            @RequestBody CourseSection courseSection
+    ) {
+        return courseSectionService
+                .updateSection(
+                        studySetId,
+                        sectionId,
+                        courseSection
+                );
+    }
+
+    @DeleteMapping("/{sectionId}")
+    public void deleteSection(
+            @PathVariable("studySetId") Long studySetId,
+            @PathVariable("sectionId") Long sectionId
+    ) {
+        courseSectionService.deleteSection(
                 studySetId,
-                courseSection
+                sectionId
         );
     }
 }

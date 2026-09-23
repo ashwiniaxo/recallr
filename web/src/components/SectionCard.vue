@@ -12,6 +12,7 @@ import ProgressBar from './ProgressBar.vue'
 
 const props = defineProps<{
   section: CourseSection
+  studySetId: number
 }>()
 const router = useRouter()
 const progress = ref<SectionProgress | null>(null)
@@ -62,12 +63,14 @@ const unstudiedConcepts = computed(() => {
 })
 
 function startStudying() {
-  router.push(`/study/sections/${props.section.id}`)
+  router.push(
+    `/courses/${props.studySetId}/sections/${props.section.id}/study`,
+  )
 }
 
 function viewConcepts() {
   router.push(
-    `/courses/1/sections/${props.section.id}/materials`,
+    `/courses/${props.studySetId}/sections/${props.section.id}/materials`,
   )
 }
 </script>

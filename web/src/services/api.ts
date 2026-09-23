@@ -9,6 +9,8 @@ import type {
   AnswerRequest,
   AnswerResult,
   StudySessionStatus,
+  StudySetRequest,
+  CourseSectionRequest,
 } from '../types/study'
 
 const API_URL = 'http://localhost:8080/api'
@@ -196,4 +198,123 @@ export async function getStudySessionStatus(
   }
 
   return response.json()
+}
+
+export async function createStudySet(
+  request: StudySetRequest,
+): Promise<StudySet> {
+  const response = await fetch(
+    `${API_URL}/study-sets`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to create study set')
+  }
+
+  return response.json()
+}
+
+export async function updateStudySet(
+  studySetId: number,
+  request: StudySetRequest,
+): Promise<StudySet> {
+  const response = await fetch(
+    `${API_URL}/study-sets/${studySetId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to update study set')
+  }
+
+  return response.json()
+}
+
+export async function deleteStudySet(
+  studySetId: number,
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/study-sets/${studySetId}`,
+    {
+      method: 'DELETE',
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to delete study set')
+  }
+}
+
+export async function createCourseSection(
+  studySetId: number,
+  request: CourseSectionRequest,
+): Promise<CourseSection> {
+  const response = await fetch(
+    `${API_URL}/study-sets/${studySetId}/sections`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to create section')
+  }
+
+  return response.json()
+}
+
+export async function updateCourseSection(
+  studySetId: number,
+  sectionId: number,
+  request: CourseSectionRequest,
+): Promise<CourseSection> {
+  const response = await fetch(
+    `${API_URL}/study-sets/${studySetId}/sections/${sectionId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to update section')
+  }
+
+  return response.json()
+}
+
+export async function deleteCourseSection(
+  studySetId: number,
+  sectionId: number,
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/study-sets/${studySetId}/sections/${sectionId}`,
+    {
+      method: 'DELETE',
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to delete section')
+  }
 }

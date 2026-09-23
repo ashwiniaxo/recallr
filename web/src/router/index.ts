@@ -24,9 +24,9 @@ const router = createRouter({
     },
 
     {
-        path: '/study/sections/:sectionId',
-        name: 'study',
-        component: StudyView,
+      path: '/courses/:courseId/sections/:sectionId/study',
+      name: 'study',
+      component: StudyView,
     },
 
     {

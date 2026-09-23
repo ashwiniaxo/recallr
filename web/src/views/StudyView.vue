@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import {
+  computed,
+  ref,
+} from 'vue'
+
 import { useRoute } from 'vue-router'
 
 import {
@@ -17,63 +21,79 @@ import type {
 
 const route = useRoute()
 
-const sectionId = Number(route.params.sectionId)
+const courseId = computed(() =>
+  Number(route.params.courseId),
+)
+
+const sectionId = computed(() =>
+  Number(route.params.sectionId),
+)
 
 /*
- * Configuration de la session
+ * CONFIGURATION
  */
+
 const questionCount = ref(5)
 
-const selectedTypes = ref<QuestionType[]>([
-  'MULTIPLE_CHOICE',
-  'TRUE_FALSE',
-  'SHORT_ANSWER',
-])
+const selectedTypes =
+  ref<QuestionType[]>([
+    'MULTIPLE_CHOICE',
+    'TRUE_FALSE',
+    'SHORT_ANSWER',
+  ])
 
 /*
- * Session
+ * SESSION
  */
-const session = ref<StudySession | null>(null)
+
+const session =
+  ref<StudySession | null>(null)
 
 const currentQuestionIndex = ref(0)
 
-const currentQuestion = computed(() => {
-  return (
-    session.value?.questions[
-      currentQuestionIndex.value
-    ] ?? null
-  )
-})
+const currentQuestion = computed(() =>
+  session.value?.questions[
+    currentQuestionIndex.value
+  ] ?? null,
+)
 
 /*
- * Réponse de l'utilisateur
+ * RÉPONSE DE L'UTILISATEUR
  */
-const selectedOptionIndex = ref<number | null>(null)
+
+const selectedOptionIndex =
+  ref<number | null>(null)
 
 const textAnswer = ref('')
 
+const answerResult =
+  ref<AnswerResult | null>(null)
+
 /*
- * Résultat de la correction
+ * RÉSUMÉ
  */
-const answerResult = ref<AnswerResult | null>(null)
+
 const sessionStatus =
   ref<StudySessionStatus | null>(null)
 
 const loadingSummary = ref(false)
+
+/*
+ * ÉTATS UI
+ */
+
+const loading = ref(false)
 const submitting = ref(false)
+
+const error =
+  ref<string | null>(null)
 
 const answerError = ref('')
 
 /*
- * États généraux
+ * SESSION
  */
-const loading = ref(false)
 
-const error = ref<string | null>(null)
-
-/*
- * Création de la session
- */
 async function startSession() {
   if (selectedTypes.value.length === 0) {
     error.value =
@@ -85,14 +105,24 @@ async function startSession() {
   loading.value = true
   error.value = null
 
+  /*
+   * Important si l'utilisateur recommence
+   * une nouvelle session.
+   */
+  sessionStatus.value = null
+
   try {
-    session.value = await createStudySession(
-      sectionId,
-      {
-        questionCount: questionCount.value,
-        questionTypes: selectedTypes.value,
-      },
-    )
+    session.value =
+      await createStudySession(
+        sectionId.value,
+        {
+          questionCount:
+            questionCount.value,
+
+          questionTypes:
+            selectedTypes.value,
+        },
+      )
 
     currentQuestionIndex.value = 0
 
@@ -108,10 +138,14 @@ async function startSession() {
 }
 
 /*
- * Validation d'une réponse
+ * VALIDATION
  */
+
 async function validateAnswer() {
-  if (!session.value || !currentQuestion.value) {
+  if (
+    !session.value ||
+    !currentQuestion.value
+  ) {
     return
   }
 
@@ -125,33 +159,36 @@ async function validateAnswer() {
       'MULTIPLE_CHOICE' &&
     selectedOptionIndex.value === null
   ) {
-    answerError.value = 'Choisis une réponse.'
+    answerError.value =
+      'Choisis une réponse.'
 
     return
   }
 
   /*
-   * Vrai / Faux
+   * TRUE / FALSE
    */
   if (
     currentQuestion.value.type ===
       'TRUE_FALSE' &&
     !textAnswer.value
   ) {
-    answerError.value = 'Choisis vrai ou faux.'
+    answerError.value =
+      'Choisis vrai ou faux.'
 
     return
   }
 
   /*
-   * Réponse courte
+   * SHORT ANSWER
    */
   if (
     currentQuestion.value.type ===
       'SHORT_ANSWER' &&
     !textAnswer.value.trim()
   ) {
-    answerError.value = 'Écris une réponse.'
+    answerError.value =
+      'Écris une réponse.'
 
     return
   }
@@ -159,25 +196,31 @@ async function validateAnswer() {
   submitting.value = true
 
   try {
-    answerResult.value = await submitAnswer(
-      session.value.sessionId,
-      currentQuestion.value.questionId,
-      {
-        selectedOptionIndex:
-          currentQuestion.value.type ===
-          'MULTIPLE_CHOICE'
-            ? selectedOptionIndex.value
-            : null,
+    answerResult.value =
+      await submitAnswer(
+        session.value.sessionId,
+        currentQuestion.value.questionId,
+        {
+          selectedOptionIndex:
+            currentQuestion.value.type ===
+            'MULTIPLE_CHOICE'
+              ? selectedOptionIndex.value
+              : null,
 
-        answer:
-          currentQuestion.value.type ===
-          'MULTIPLE_CHOICE'
-            ? null
-            : textAnswer.value,
-      },
-    )
+          answer:
+            currentQuestion.value.type ===
+            'MULTIPLE_CHOICE'
+              ? null
+              : textAnswer.value,
+        },
+      )
+
+    /*
+     * Après la dernière réponse,
+     * récupère immédiatement le résumé.
+     */
     if (isLastQuestion.value) {
-        await loadSessionSummary()
+      await loadSessionSummary()
     }
   } catch (err) {
     console.error(err)
@@ -190,14 +233,8 @@ async function validateAnswer() {
 }
 
 /*
- * Réinitialise les champs de réponse
+ * RÉSUMÉ
  */
-function resetAnswer() {
-  selectedOptionIndex.value = null
-  textAnswer.value = ''
-  answerResult.value = null
-  answerError.value = ''
-}
 
 async function loadSessionSummary() {
   if (!session.value) {
@@ -220,9 +257,19 @@ async function loadSessionSummary() {
     loadingSummary.value = false
   }
 }
+
 /*
- * Question suivante
+ * NAVIGATION ENTRE QUESTIONS
  */
+
+function resetAnswer() {
+  selectedOptionIndex.value = null
+  textAnswer.value = ''
+
+  answerResult.value = null
+  answerError.value = ''
+}
+
 function nextQuestion() {
   if (!session.value) {
     return
@@ -238,9 +285,22 @@ function nextQuestion() {
   }
 }
 
+function restartSession() {
+  session.value = null
+
+  sessionStatus.value = null
+
+  currentQuestionIndex.value = 0
+
+  resetAnswer()
+
+  error.value = null
+}
+
 /*
- * Permet de savoir si on est à la dernière question
+ * COMPUTED
  */
+
 const isLastQuestion = computed(() => {
   if (!session.value) {
     return false
@@ -251,88 +311,118 @@ const isLastQuestion = computed(() => {
     session.value.questions.length - 1
   )
 })
+
+function questionTypeLabel(
+  type: QuestionType,
+) {
+  switch (type) {
+    case 'MULTIPLE_CHOICE':
+      return 'Choix multiple'
+
+    case 'TRUE_FALSE':
+      return 'Vrai ou faux'
+
+    case 'SHORT_ANSWER':
+      return 'Réponse courte'
+  }
+}
 </script>
 
 <template>
   <main class="study-view">
     <RouterLink
-      to="/courses/1"
+      :to="`/courses/${courseId}`"
       class="back-link"
     >
       ← Retour au cours
     </RouterLink>
 
-    <!-- ============================= -->
-    <!-- CONFIGURATION DE LA SESSION -->
-    <!-- ============================= -->
+    <!-- CONFIGURATION -->
 
     <section
       v-if="!session"
-      class="setup-card"
+      class="study-setup"
     >
       <p class="eyebrow">
         Session d'étude
       </p>
 
-      <h1>
-        Comment veux-tu réviser ?
-      </h1>
+      <h1>Commencer à réviser</h1>
 
-      <div class="field">
-        <label for="question-count">
+      <p>
+        Choisis le nombre et les types
+        de questions que tu veux pratiquer.
+      </p>
+
+      <div class="setup-section">
+        <h2>
           Nombre de questions
-        </label>
+        </h2>
 
-        <select
-          id="question-count"
-          v-model.number="questionCount"
-        >
-          <option :value="5">
-            5 questions
-          </option>
+        <div class="choice-row">
+          <label>
+            <input
+              v-model="questionCount"
+              type="radio"
+              :value="5"
+            >
+            5
+          </label>
 
-          <option :value="10">
-            10 questions
-          </option>
+          <label>
+            <input
+              v-model="questionCount"
+              type="radio"
+              :value="10"
+            >
+            10
+          </label>
 
-          <option :value="15">
-            15 questions
-          </option>
-        </select>
+          <label>
+            <input
+              v-model="questionCount"
+              type="radio"
+              :value="15"
+            >
+            15
+          </label>
+        </div>
       </div>
 
-      <fieldset>
-        <legend>
+      <div class="setup-section">
+        <h2>
           Types de questions
-        </legend>
+        </h2>
 
-        <label>
-          <input
-            v-model="selectedTypes"
-            type="checkbox"
-            value="MULTIPLE_CHOICE"
-          >
-          Choix multiples
-        </label>
+        <div class="type-options">
+          <label>
+            <input
+              v-model="selectedTypes"
+              type="checkbox"
+              value="MULTIPLE_CHOICE"
+            >
+            Choix multiple
+          </label>
 
-        <label>
-          <input
-            v-model="selectedTypes"
-            type="checkbox"
-            value="TRUE_FALSE"
-          >
-          Vrai ou faux
-        </label>
+          <label>
+            <input
+              v-model="selectedTypes"
+              type="checkbox"
+              value="TRUE_FALSE"
+            >
+            Vrai ou faux
+          </label>
 
-        <label>
-          <input
-            v-model="selectedTypes"
-            type="checkbox"
-            value="SHORT_ANSWER"
-          >
-          Réponse courte
-        </label>
-      </fieldset>
+          <label>
+            <input
+              v-model="selectedTypes"
+              type="checkbox"
+              value="SHORT_ANSWER"
+            >
+            Réponse courte
+          </label>
+        </div>
+      </div>
 
       <p
         v-if="error"
@@ -343,392 +433,426 @@ const isLastQuestion = computed(() => {
 
       <button
         type="button"
+        class="primary-button"
         :disabled="loading"
         @click="startSession"
       >
         {{
           loading
-            ? 'Préparation...'
-            : 'Commencer la session'
+            ? 'Génération des questions...'
+            : 'Commencer'
         }}
       </button>
     </section>
 
-    <!-- ============================= -->
     <!-- SESSION -->
-    <!-- ============================= -->
 
-    <section
+    <template
       v-else-if="currentQuestion"
-      class="question-card"
     >
-      <!-- HEADER -->
+      <header class="session-header">
+        <div>
+          <p class="eyebrow">
+            Session d'étude
+          </p>
 
-      <div class="question-header">
-        <span>
-          Question
-          {{ currentQuestionIndex + 1 }}
-          /
-          {{ session.questionCount }}
-        </span>
+          <h1>
+            Question
+            {{
+              currentQuestionIndex + 1
+            }}
+            /
+            {{ session.questionCount }}
+          </h1>
+        </div>
 
         <span class="question-type">
           {{
-            currentQuestion.type ===
-            'MULTIPLE_CHOICE'
-              ? 'Choix multiples'
-              : currentQuestion.type ===
-                  'TRUE_FALSE'
-                ? 'Vrai ou faux'
-                : 'Réponse courte'
+            questionTypeLabel(
+              currentQuestion.type,
+            )
           }}
         </span>
-      </div>
+      </header>
 
       <!-- PROGRESSION -->
 
-      <progress
-        :value="currentQuestionIndex + 1"
-        :max="session.questionCount"
-      />
+      <div class="progress-track">
+        <div
+          class="progress-value"
+          :style="{
+            width:
+              `${
+                ((currentQuestionIndex + 1) /
+                  session.questionCount) *
+                100
+              }%`,
+          }"
+        />
+      </div>
 
       <!-- QUESTION -->
 
-      <h1>
-        {{ currentQuestion.question }}
-      </h1>
-
-      <!-- ========================= -->
-      <!-- CHOIX MULTIPLES -->
-      <!-- ========================= -->
-
-      <div
-        v-if="
-          currentQuestion.type ===
-          'MULTIPLE_CHOICE'
-        "
-        class="options"
-      >
-        <label
-          v-for="(option, index) in
-            currentQuestion.options"
-          :key="index"
-          class="option"
-          :class="{
-            selected:
-              selectedOptionIndex === index,
-          }"
-        >
-          <input
-            v-model="selectedOptionIndex"
-            type="radio"
-            name="multiple-choice-answer"
-            :value="index"
-            :disabled="answerResult !== null"
-          >
-
-          <span>
-            {{ option }}
-          </span>
-        </label>
-      </div>
-
-      <!-- ========================= -->
-      <!-- VRAI / FAUX -->
-      <!-- ========================= -->
-
-      <div
-        v-else-if="
-          currentQuestion.type ===
-          'TRUE_FALSE'
-        "
-        class="options true-false-options"
-      >
-        <label
-          class="option"
-          :class="{
-            selected: textAnswer === 'True',
-          }"
-        >
-          <input
-            v-model="textAnswer"
-            type="radio"
-            name="true-false-answer"
-            value="True"
-            :disabled="answerResult !== null"
-          >
-
-          <span>
-            Vrai
-          </span>
-        </label>
-
-        <label
-          class="option"
-          :class="{
-            selected: textAnswer === 'False',
-          }"
-        >
-          <input
-            v-model="textAnswer"
-            type="radio"
-            name="true-false-answer"
-            value="False"
-            :disabled="answerResult !== null"
-          >
-
-          <span>
-            Faux
-          </span>
-        </label>
-      </div>
-
-      <!-- ========================= -->
-      <!-- RÉPONSE COURTE -->
-      <!-- ========================= -->
-
-      <textarea
-        v-else-if="
-          currentQuestion.type ===
-          'SHORT_ANSWER'
-        "
-        v-model="textAnswer"
-        rows="5"
-        placeholder="Écris ta réponse..."
-        :disabled="answerResult !== null"
-      />
-
-      <!-- ERREUR -->
-
-      <p
-        v-if="answerError"
-        class="error answer-error"
-      >
-        {{ answerError }}
-      </p>
-
-      <!-- ========================= -->
-      <!-- VALIDER -->
-      <!-- ========================= -->
-
-      <button
-        v-if="!answerResult"
-        type="button"
-        class="validate-button"
-        :disabled="submitting"
-        @click="validateAnswer"
-      >
-        {{
-          submitting
-            ? 'Validation...'
-            : 'Valider'
-        }}
-      </button>
-
-      <!-- ========================= -->
-      <!-- FEEDBACK -->
-      <!-- ========================= -->
-
-      <div
-        v-if="answerResult"
-        class="answer-feedback"
-        :class="{
-          correct: answerResult.correct,
-          incorrect: !answerResult.correct,
-        }"
-      >
+      <section class="question-card">
         <h2>
-          {{
-            answerResult.correct
-              ? '✓ Bonne réponse'
-              : 'Réponse à améliorer'
-          }}
+          {{ currentQuestion.question }}
         </h2>
 
-        <p class="score">
-          Score :
-          <strong>
+        <!-- MULTIPLE CHOICE -->
+
+        <div
+          v-if="
+            currentQuestion.type ===
+            'MULTIPLE_CHOICE'
+          "
+          class="options"
+        >
+          <label
+            v-for="(
+              option,
+              index
+            ) in currentQuestion.options"
+            :key="index"
+            class="option"
+            :class="{
+              selected:
+                selectedOptionIndex ===
+                index,
+            }"
+          >
+            <input
+              v-model="selectedOptionIndex"
+              type="radio"
+              :value="index"
+              :disabled="
+                answerResult !== null
+              "
+            >
+
+            <span>
+              {{ option }}
+            </span>
+          </label>
+        </div>
+
+        <!-- TRUE FALSE -->
+
+        <div
+          v-else-if="
+            currentQuestion.type ===
+            'TRUE_FALSE'
+          "
+          class="options"
+        >
+          <label
+            class="option"
+            :class="{
+              selected:
+                textAnswer === 'True',
+            }"
+          >
+            <input
+              v-model="textAnswer"
+              type="radio"
+              value="True"
+              :disabled="
+                answerResult !== null
+              "
+            >
+
+            <span>Vrai</span>
+          </label>
+
+          <label
+            class="option"
+            :class="{
+              selected:
+                textAnswer === 'False',
+            }"
+          >
+            <input
+              v-model="textAnswer"
+              type="radio"
+              value="False"
+              :disabled="
+                answerResult !== null
+              "
+            >
+
+            <span>Faux</span>
+          </label>
+        </div>
+
+        <!-- SHORT ANSWER -->
+
+        <textarea
+          v-else-if="
+            currentQuestion.type ===
+            'SHORT_ANSWER'
+          "
+          v-model="textAnswer"
+          class="answer-input"
+          rows="6"
+          placeholder="Écris ta réponse..."
+          :disabled="
+            answerResult !== null
+          "
+        />
+
+        <p
+          v-if="answerError"
+          class="error"
+        >
+          {{ answerError }}
+        </p>
+
+        <button
+          v-if="!answerResult"
+          type="button"
+          class="primary-button"
+          :disabled="submitting"
+          @click="validateAnswer"
+        >
+          {{
+            submitting
+              ? 'Validation...'
+              : 'Valider ma réponse'
+          }}
+        </button>
+
+        <!-- FEEDBACK -->
+
+        <section
+          v-if="answerResult"
+          class="feedback"
+          :class="{
+            correct:
+              answerResult.correct,
+            incorrect:
+              !answerResult.correct,
+          }"
+        >
+          <h3>
+            {{
+              answerResult.correct
+                ? '✓ Bonne réponse'
+                : '✗ Réponse à revoir'
+            }}
+          </h3>
+
+          <p class="score">
+            Score :
             {{ answerResult.score }} %
-          </strong>
-        </p>
-
-        <p v-if="answerResult.feedback">
-          {{ answerResult.feedback }}
-        </p>
-
-        <!-- CONCEPTS CORRECTS -->
-
-        <div
-          v-if="
-            answerResult.correctConcepts &&
-            answerResult.correctConcepts.length
-          "
-          class="feedback-section"
-        >
-          <strong>
-            Concepts compris
-          </strong>
-
-          <ul>
-            <li
-              v-for="concept in
-                answerResult.correctConcepts"
-              :key="concept"
-            >
-              {{ concept }}
-            </li>
-          </ul>
-        </div>
-
-        <!-- CONCEPTS MANQUANTS -->
-
-        <div
-          v-if="
-            answerResult.missingConcepts &&
-            answerResult.missingConcepts.length
-          "
-          class="feedback-section"
-        >
-          <strong>
-            Concepts à améliorer
-          </strong>
-
-          <ul>
-            <li
-              v-for="concept in
-                answerResult.missingConcepts"
-              :key="concept"
-            >
-              {{ concept }}
-            </li>
-          </ul>
-        </div>
-
-        <!-- EXPLICATION -->
-
-        <div
-          v-if="answerResult.explanation"
-          class="feedback-section"
-        >
-          <strong>
-            Explication
-          </strong>
-
-          <p>
-            {{ answerResult.explanation }}
           </p>
-        </div>
 
-        <!-- RÉPONSE ATTENDUE -->
-
-        <div
-          v-if="answerResult.expectedAnswer"
-          class="feedback-section"
-        >
-          <strong>
-            Réponse attendue
-          </strong>
-
-          <p>
-            {{ answerResult.expectedAnswer }}
+          <p
+            v-if="answerResult.feedback"
+          >
+            {{ answerResult.feedback }}
           </p>
-        </div>
-      </div>
 
-      <!-- ========================= -->
-      <!-- QUESTION SUIVANTE -->
-      <!-- ========================= -->
+          <div
+            v-if="
+              answerResult.correctConcepts
+                ?.length
+            "
+          >
+            <strong>
+              Concepts maîtrisés :
+            </strong>
 
-      <button
+            <ul>
+              <li
+                v-for="
+                  item in
+                  answerResult.correctConcepts
+                "
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="
+              answerResult.missingConcepts
+                ?.length
+            "
+          >
+            <strong>
+              Concepts à revoir :
+            </strong>
+
+            <ul>
+              <li
+                v-for="
+                  item in
+                  answerResult.missingConcepts
+                "
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="
+              answerResult.explanation
+            "
+          >
+            <strong>
+              Explication :
+            </strong>
+
+            <p>
+              {{
+                answerResult.explanation
+              }}
+            </p>
+          </div>
+
+          <div
+            v-if="
+              answerResult.expectedAnswer
+            "
+          >
+            <strong>
+              Réponse attendue :
+            </strong>
+
+            <p>
+              {{
+                answerResult.expectedAnswer
+              }}
+            </p>
+          </div>
+        </section>
+
+        <!-- NEXT -->
+
+        <button
+          v-if="
+            answerResult &&
+            !isLastQuestion
+          "
+          type="button"
+          class="next-button"
+          @click="nextQuestion"
+        >
+          Question suivante →
+        </button>
+      </section>
+
+      <!-- RÉSUMÉ -->
+
+      <section
         v-if="
           answerResult &&
-          !isLastQuestion
+          isLastQuestion
         "
-        type="button"
-        class="next-button"
-        @click="nextQuestion"
+        class="session-finished"
       >
-        Question suivante →
-      </button>
+        <p v-if="loadingSummary">
+          Chargement du résumé...
+        </p>
 
-      <!-- ========================= -->
-      <!-- DERNIÈRE QUESTION -->
-      <!-- ========================= -->
+        <template
+          v-else-if="sessionStatus"
+        >
+          <p class="summary-eyebrow">
+            Session terminée
+          </p>
 
-      <div
-  v-if="answerResult && isLastQuestion"
-  class="session-finished"
->
-  <p v-if="loadingSummary">
-    Chargement du résumé...
-  </p>
+          <h2>
+            🎉 Résumé de ta session
+          </h2>
 
-  <template v-else-if="sessionStatus">
-    <p class="summary-eyebrow">
-      Session terminée
-    </p>
+          <div class="summary-score">
+            {{
+              Math.round(
+                sessionStatus.averageScore,
+              )
+            }}
+            %
+          </div>
 
-    <h2>
-      🎉 Résumé de ta session
-    </h2>
+          <p class="summary-label">
+            Score moyen
+          </p>
 
-    <div class="summary-score">
-      {{ Math.round(sessionStatus.averageScore) }} %
-    </div>
+          <div class="summary-stats">
+            <div class="summary-stat">
+              <strong>
+                {{
+                  sessionStatus
+                    .answeredQuestions
+                }}
+                /
+                {{
+                  sessionStatus
+                    .totalQuestions
+                }}
+              </strong>
 
-    <p class="summary-label">
-      Score moyen
-    </p>
+              <span>
+                Questions répondues
+              </span>
+            </div>
 
-    <div class="summary-stats">
-      <div class="summary-stat">
-        <strong>
-          {{ sessionStatus.answeredQuestions }}
-          /
-          {{ sessionStatus.totalQuestions }}
-        </strong>
+            <div class="summary-stat">
+              <strong>
+                {{
+                  sessionStatus
+                    .correctAnswers
+                }}
+              </strong>
 
-        <span>
-          Questions répondues
-        </span>
-      </div>
+              <span>
+                Bonnes réponses
+              </span>
+            </div>
 
-      <div class="summary-stat">
-        <strong>
-          {{ sessionStatus.correctAnswers }}
-        </strong>
+            <div class="summary-stat">
+              <strong>
+                {{
+                  sessionStatus
+                    .incorrectAnswers
+                }}
+              </strong>
 
-        <span>
-          Bonnes réponses
-        </span>
-      </div>
+              <span>
+                Réponses incorrectes
+              </span>
+            </div>
+          </div>
 
-      <div class="summary-stat">
-        <strong>
-          {{ sessionStatus.incorrectAnswers }}
-        </strong>
+          <div class="summary-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              @click="restartSession"
+            >
+              Refaire une session
+            </button>
 
-        <span>
-          Réponses incorrectes
-        </span>
-      </div>
-    </div>
-
-    <RouterLink
-      to="/courses/1"
-      class="return-button"
-    >
-      Retour au cours
-    </RouterLink>
-  </template>
-</div>
-    </section>
+            <RouterLink
+              :to="`/courses/${courseId}`"
+              class="return-button"
+            >
+              Retour au cours
+            </RouterLink>
+          </div>
+        </template>
+      </section>
+    </template>
   </main>
 </template>
 
 <style scoped>
 .study-view {
-  width: min(100% - 2rem, 800px);
+  width: min(100% - 2rem, 850px);
   margin: 0 auto;
   padding: 3rem 0;
 }
@@ -739,7 +863,15 @@ const isLastQuestion = computed(() => {
   text-decoration: none;
 }
 
-.setup-card,
+.eyebrow,
+.summary-eyebrow {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #666;
+}
+
+.study-setup,
 .question-card {
   padding: 2rem;
   border: 1px solid #ddd;
@@ -747,37 +879,117 @@ const isLastQuestion = computed(() => {
   background: white;
 }
 
-.eyebrow {
-  margin: 0;
-  font-weight: 700;
+.study-setup h1 {
+  margin-bottom: 0.5rem;
 }
 
-.field {
-  display: grid;
-  gap: 0.5rem;
+.setup-section {
   margin: 2rem 0;
 }
 
-select {
-  width: 100%;
-  padding: 0.75rem;
+.setup-section h2 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
 }
 
-fieldset {
+.choice-row,
+.type-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.choice-row label,
+.type-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.session-header h1 {
+  margin: 0.25rem 0 0;
+}
+
+.question-type {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eee;
+}
+
+.progress-value {
+  height: 100%;
+  background: #222;
+  transition: width 0.2s ease;
+}
+
+.question-card h2 {
+  margin-top: 0;
+  line-height: 1.4;
+}
+
+.options {
   display: grid;
   gap: 0.75rem;
-  margin: 0 0 2rem;
+  margin: 1.5rem 0;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
   padding: 1rem;
   border: 1px solid #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.option.selected {
+  border-color: #222;
+}
+
+.option input {
+  margin-top: 0.2rem;
+}
+
+.answer-input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  resize: vertical;
+  font: inherit;
+}
+
+button,
+.return-button {
+  padding: 0.8rem 1.25rem;
   border-radius: 8px;
+  font-weight: 600;
 }
 
 button {
-  padding: 0.8rem 1.25rem;
   border: 0;
-  border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
 }
 
 button:disabled {
@@ -785,161 +997,61 @@ button:disabled {
   opacity: 0.6;
 }
 
+.primary-button {
+  background: #222;
+  color: white;
+}
+
+.secondary-button {
+  border: 1px solid #ddd;
+  background: white;
+}
+
+.next-button {
+  margin-top: 1rem;
+}
+
+.feedback {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+}
+
+.feedback.correct {
+  border-color: #8abf9a;
+}
+
+.feedback.incorrect {
+  border-color: #d49a9a;
+}
+
+.feedback h3,
+.feedback p {
+  margin-top: 0;
+}
+
+.feedback ul {
+  margin-bottom: 0;
+}
+
+.score {
+  font-weight: 700;
+}
+
 .error {
   color: #b42318;
 }
 
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.question-type {
-  color: #666;
-}
-
-progress {
-  width: 100%;
-}
-
-.question-card h1 {
-  margin: 2rem 0;
-}
-
-.options {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.true-false-options {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.option {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-
-  padding: 1rem;
-
-  border: 1px solid #ddd;
-  border-radius: 8px;
-
-  cursor: pointer;
-}
-
-.option:hover {
-  border-color: #999;
-}
-
-.option.selected {
-  border-color: #333;
-}
-
-.option:has(input:disabled) {
-  cursor: default;
-}
-
-textarea {
-  width: 100%;
-  box-sizing: border-box;
-
-  padding: 1rem;
-
-  resize: vertical;
-
-  font: inherit;
-
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-.validate-button {
-  margin-top: 2rem;
-}
-
-.answer-error {
-  margin-top: 1rem;
-}
-
-.answer-feedback {
-  margin-top: 2rem;
-  padding: 1.5rem;
-
-  border: 1px solid #ddd;
-  border-radius: 12px;
-}
-
-.answer-feedback h2 {
-  margin-top: 0;
-}
-
-.answer-feedback.correct {
-  border-color: #75b798;
-}
-
-.answer-feedback.incorrect {
-  border-color: #e3a6a1;
-}
-
-.score {
-  font-size: 1.1rem;
-}
-
-.feedback-section {
-  margin-top: 1.25rem;
-}
-
-.feedback-section p {
-  margin-bottom: 0;
-  line-height: 1.6;
-}
-
-.feedback-section ul {
-  margin-bottom: 0;
-}
-
-.next-button {
-  margin-top: 1.5rem;
-}
-
-.session-finished {
-  margin-top: 2rem;
-  padding: 1.5rem;
-
-  text-align: center;
-
-  border: 1px solid #ddd;
-  border-radius: 12px;
-}
-
-@media (max-width: 600px) {
-  .question-header {
-    flex-direction: column;
-  }
-
-  .true-false-options {
-    grid-template-columns: 1fr;
-  }
-}
 .session-finished {
   margin-top: 2rem;
   padding: 2rem;
-
   text-align: center;
-
   border: 1px solid #ddd;
   border-radius: 16px;
-}
-
-.summary-eyebrow {
-  margin: 0;
-
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #666;
+  background: white;
 }
 
 .session-finished h2 {
@@ -958,19 +1070,16 @@ textarea {
 
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-
+  grid-template-columns:
+    repeat(3, 1fr);
   gap: 1rem;
-
   margin: 2rem 0;
 }
 
 .summary-stat {
   display: grid;
   gap: 0.4rem;
-
   padding: 1rem;
-
   border: 1px solid #ddd;
   border-radius: 10px;
 }
@@ -984,22 +1093,26 @@ textarea {
   color: #666;
 }
 
+.summary-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .return-button {
   display: inline-block;
-
-  padding: 0.8rem 1.25rem;
-
-  border-radius: 8px;
-
-  text-decoration: none;
-  font-weight: 600;
-
   border: 1px solid #ddd;
+  text-decoration: none;
 }
 
 @media (max-width: 600px) {
   .summary-stats {
     grid-template-columns: 1fr;
+  }
+
+  .session-header {
+    flex-direction: column;
   }
 }
 </style>

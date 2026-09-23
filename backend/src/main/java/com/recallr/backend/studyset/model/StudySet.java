@@ -1,12 +1,13 @@
 package com.recallr.backend.studyset.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "study_sets")
@@ -23,6 +24,13 @@ public class StudySet {
     private LocalDateTime createdAt;
 
     public StudySet() {
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public StudySet(String title, String description) {
