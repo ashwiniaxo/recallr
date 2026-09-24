@@ -57,164 +57,166 @@ public class QuestionGeneratorService {
          * - TRUE_FALSE
          * - SHORT_ANSWER
          *
-         * Le goal représente plutôt le TYPE DE RAISONNEMENT
+         * Le goal représente le TYPE DE RAISONNEMENT
          * que l'on veut faire travailler.
          */
         QuestionGoal goal = selectQuestionGoal();
 
-        String goalInstructions = getGoalInstructions(goal);
+        String goalInstructions =
+                getGoalInstructions(goal);
 
-        String typeInstructions = switch (type) {
+        String typeInstructions =
+                switch (type) {
 
-            case MULTIPLE_CHOICE -> """
-                    Create a high-quality multiple-choice question.
+                    case MULTIPLE_CHOICE -> """
+                            Create a high-quality multiple-choice question.
 
-                    IMPORTANT:
+                            IMPORTANT:
 
-                    - Provide exactly 4 answer options.
+                            - Provide exactly 4 answer options.
 
-                    - Exactly ONE option must fully answer the question.
+                            - Exactly ONE option must fully answer the question.
 
-                    - The other 3 options must be plausible distractors.
+                            - The other 3 options must be plausible distractors.
 
-                    - Distractors should represent realistic mistakes,
-                      misunderstandings, confusions, or incomplete reasoning
-                      that a student could make.
+                            - Distractors should represent realistic mistakes,
+                              misunderstandings, confusions, or incomplete reasoning
+                              that a student could make.
 
-                    - Do NOT make the incorrect options obviously absurd.
+                            - Do NOT make the incorrect options obviously absurd.
 
-                    - A student who does not understand the concept should
-                      not be able to guess the answer simply because one
-                      option looks much more detailed or sophisticated.
+                            - A student who does not understand the concept should
+                              not be able to guess the answer simply because one
+                              option looks much more detailed or sophisticated.
 
-                    - Keep the answer options reasonably similar in style,
-                      structure, and level of detail.
+                            - Keep the answer options reasonably similar in style,
+                              structure, and level of detail.
 
-                    - Never create a question where multiple options are
-                      individually correct.
+                            - Never create a question where multiple options are
+                              individually correct.
 
-                    - Never split a multi-part correct answer across several
-                      options.
+                            - Never split a multi-part correct answer across several
+                              options.
 
-                    - If the answer contains several required elements,
-                      put ALL required elements together in the single
-                      correct option.
+                            - If the answer contains several required elements,
+                              put ALL required elements together in the single
+                              correct option.
 
-                    - All 4 options must be meaningfully different.
+                            - All 4 options must be meaningfully different.
 
-                    - Do not use duplicate options.
+                            - Do not use duplicate options.
 
-                    - Avoid "all of the above" and "none of the above".
+                            - Avoid "all of the above" and "none of the above".
 
-                    - correctOptionIndex must identify the ONE fully
-                      correct option.
+                            - correctOptionIndex must identify the ONE fully
+                              correct option.
 
-                    - correctOptionIndex must be 0, 1, 2, or 3.
+                            - correctOptionIndex must be 0, 1, 2, or 3.
 
-                    - correctAnswer must be null.
+                            - correctAnswer must be null.
 
-                    Whenever the cognitive goal allows it, prefer testing
-                    understanding or reasoning instead of simple recognition.
-                    """;
+                            Whenever the cognitive goal allows it, prefer testing
+                            understanding or reasoning instead of simple recognition.
+                            """;
 
-            case TRUE_FALSE -> """
-                    Create a high-quality True/False study statement.
+                    case TRUE_FALSE -> """
+                            Create a high-quality True/False study statement.
 
-                    The statement should test whether the student actually
-                    understands an important idea from the study material.
+                            The statement should test whether the student actually
+                            understands an important idea from the study material.
 
-                    Prefer statements involving:
+                            Prefer statements involving:
 
-                    - an important relationship between concepts;
-                    - a consequence;
-                    - an application;
-                    - an important distinction;
-                    - or a realistic misconception.
+                            - an important relationship between concepts;
+                            - a consequence;
+                            - an application;
+                            - an important distinction;
+                            - or a realistic misconception.
 
-                    If the statement is false, prefer a realistic conceptual
-                    mistake rather than an obviously absurd statement.
+                            If the statement is false, prefer a realistic conceptual
+                            mistake rather than an obviously absurd statement.
 
-                    IMPORTANT:
+                            IMPORTANT:
 
-                    - Write an AFFIRMATION, not a question.
+                            - Write an AFFIRMATION, not a question.
 
-                    - Do NOT ask "What is...?" or "Qu'est-ce que...?".
+                            - Do NOT ask "What is...?" or "Qu'est-ce que...?".
 
-                    - Do NOT ask for a definition.
+                            - Do NOT ask for a definition.
 
-                    - Do NOT use a question mark.
+                            - Do NOT use a question mark.
 
-                    - Avoid trivial statements that simply copy one sentence
-                      word-for-word from the study material when a more
-                      meaningful statement can be created.
+                            - Avoid trivial statements that simply copy one sentence
+                              word-for-word from the study material when a more
+                              meaningful statement can be created.
 
-                    - The statement must be unambiguously either true or
-                      false according to the provided study material.
+                            - The statement must be unambiguously either true or
+                              false according to the provided study material.
 
-                    - options must be [].
+                            - options must be [].
 
-                    - correctOptionIndex must be null.
+                            - correctOptionIndex must be null.
 
-                    - correctAnswer MUST be exactly "True" or "False".
+                            - correctAnswer MUST be exactly "True" or "False".
 
-                    - Never return null for correctAnswer.
+                            - Never return null for correctAnswer.
 
-                    Example of the expected JSON structure:
+                            Example of the expected JSON structure:
 
-                    {
-                      "question": "PEAS permet de décrire l'environnement de tâche d'un agent intelligent.",
-                      "options": [],
-                      "correctOptionIndex": null,
-                      "correctAnswer": "True",
-                      "explanation": "Explication pédagogique de la raison."
-                    }
-                    """;
+                            {
+                              "question": "PEAS permet de décrire l'environnement de tâche d'un agent intelligent.",
+                              "options": [],
+                              "correctOptionIndex": null,
+                              "correctAnswer": "True",
+                              "explanation": "Explication pédagogique de la raison."
+                            }
+                            """;
 
-            case SHORT_ANSWER -> """
-                    Create a high-quality open-ended short-answer question.
+                    case SHORT_ANSWER -> """
+                            Create a high-quality open-ended short-answer question.
 
-                    The student should normally be able to answer in
-                    approximately 2 to 5 sentences.
+                            The student should normally be able to answer in
+                            approximately 2 to 5 sentences.
 
-                    Depending on the cognitive goal, prefer questions that
-                    require the student to:
+                            Depending on the cognitive goal, prefer questions that
+                            require the student to:
 
-                    - explain why;
-                    - explain how;
-                    - apply a concept;
-                    - interpret a situation;
-                    - compare ideas;
-                    - identify an error;
-                    - justify a choice;
-                    - explain a relationship;
-                    - or reason about a short scenario.
+                            - explain why;
+                            - explain how;
+                            - apply a concept;
+                            - interpret a situation;
+                            - compare ideas;
+                            - identify an error;
+                            - justify a choice;
+                            - explain a relationship;
+                            - or reason about a short scenario.
 
-                    For APPLICATION or ANALYSIS, prefer a short realistic
-                    scenario when the provided study material contains
-                    enough information to support one.
+                            For APPLICATION or ANALYSIS, prefer a short realistic
+                            scenario when the provided study material contains
+                            enough information to support one.
 
-                    Do NOT require knowledge that is absent from the
-                    study material.
+                            Do NOT require knowledge that is absent from the
+                            study material.
 
-                    Do NOT turn the question into a long essay question.
+                            Do NOT turn the question into a long essay question.
 
-                    IMPORTANT:
+                            IMPORTANT:
 
-                    - options must be [].
+                            - options must be [].
 
-                    - correctOptionIndex must be null.
+                            - correctOptionIndex must be null.
 
-                    - correctAnswer must contain a strong expected answer.
+                            - correctAnswer must contain a strong expected answer.
 
-                    - correctAnswer must never be null.
+                            - correctAnswer must never be null.
 
-                    - The expected answer should contain the important ideas
-                      needed to properly answer the question.
+                            - The expected answer should contain the important ideas
+                              needed to properly answer the question.
 
-                    - Different wording from the expected answer should still
-                      be considered valid later if the concepts are correct.
-                    """;
-        };
+                            - Different wording from the expected answer should still
+                              be considered valid later if the concepts are correct.
+                            """;
+                };
 
         String prompt = """
                 You are an expert educational question designer for
@@ -409,11 +411,6 @@ public class QuestionGeneratorService {
                                 + e.getMessage()
                 );
 
-                /*
-                 * Pour les essais suivants, on explique
-                 * explicitement à Qwen pourquoi sa réponse
-                 * précédente a été rejetée.
-                 */
                 currentPrompt = prompt + """
 
                         --------------------------------------------------
@@ -460,15 +457,14 @@ public class QuestionGeneratorService {
      * QUESTION GOAL
      * ------------------------------------------------------------
      *
-     * Le QuestionGoal contrôle le niveau de réflexion demandé.
+     * RECALL        = 15 percent
+     * UNDERSTANDING = 30 percent
+     * APPLICATION   = 35 percent
+     * ANALYSIS      = 20 percent
      *
-     * RECALL          = 15 %
-     * UNDERSTANDING   = 30 %
-     * APPLICATION     = 35 %
-     * ANALYSIS        = 20 %
-     *
-     * On garde volontairement un peu de rappel, mais Recallr
-     * favorise la compréhension, l'application et l'analyse.
+     * On garde volontairement un peu de rappel,
+     * mais Recallr favorise surtout la compréhension,
+     * l'application et l'analyse.
      */
 
     private QuestionGoal selectQuestionGoal() {
@@ -588,42 +584,36 @@ public class QuestionGeneratorService {
                 objectMapper.readTree(aiResponse);
 
         if (json == null || !json.isObject()) {
-
             throw new IllegalArgumentException(
                     "AI response must be a JSON object"
             );
         }
 
         if (!json.has("question")) {
-
             throw new IllegalArgumentException(
                     "Question field is missing"
             );
         }
 
         if (!json.has("options")) {
-
             throw new IllegalArgumentException(
                     "Options field is missing"
             );
         }
 
         if (!json.has("correctOptionIndex")) {
-
             throw new IllegalArgumentException(
                     "Correct option index field is missing"
             );
         }
 
         if (!json.has("correctAnswer")) {
-
             throw new IllegalArgumentException(
                     "Correct answer field is missing"
             );
         }
 
         if (!json.has("explanation")) {
-
             throw new IllegalArgumentException(
                     "Explanation field is missing"
             );
@@ -672,15 +662,6 @@ public class QuestionGeneratorService {
                                 "explanation"
                         ).asText();
 
-        /*
-         * Pour TRUE_FALSE, la structure des options
-         * est contrôlée par Java.
-         *
-         * Qwen est seulement responsable de :
-         * - l'affirmation;
-         * - True/False;
-         * - l'explication.
-         */
         if (type == QuestionType.TRUE_FALSE) {
 
             options = List.of(
@@ -718,30 +699,30 @@ public class QuestionGeneratorService {
     ) {
 
         if (question.type() == null) {
-
             throw new IllegalArgumentException(
                     "Question type is missing"
             );
         }
 
         if (question.type() != expectedType) {
-
             throw new IllegalArgumentException(
                     "Unexpected question type"
             );
         }
 
-        if (question.question() == null ||
-                question.question().isBlank()) {
-
+        if (
+                question.question() == null ||
+                question.question().isBlank()
+        ) {
             throw new IllegalArgumentException(
                     "Question text is missing"
             );
         }
 
-        if (question.explanation() == null ||
-                question.explanation().isBlank()) {
-
+        if (
+                question.explanation() == null ||
+                question.explanation().isBlank()
+        ) {
             throw new IllegalArgumentException(
                     "Explanation is missing"
             );
@@ -749,26 +730,17 @@ public class QuestionGeneratorService {
 
         switch (expectedType) {
 
-            /*
-             * ----------------------------------------------------
-             * MULTIPLE CHOICE
-             * ----------------------------------------------------
-             */
-
             case MULTIPLE_CHOICE -> {
 
-                if (question.options() == null ||
-                        question.options().size() != 4) {
-
+                if (
+                        question.options() == null ||
+                        question.options().size() != 4
+                ) {
                     throw new IllegalArgumentException(
                             "Multiple choice must contain exactly 4 options"
                     );
                 }
 
-                /*
-                 * Vérifie que Qwen n'a pas créé exactement
-                 * la même option plusieurs fois.
-                 */
                 Set<String> distinctOptions =
                         new HashSet<>();
 
@@ -777,9 +749,10 @@ public class QuestionGeneratorService {
                         question.options()
                 ) {
 
-                    if (option == null ||
-                            option.isBlank()) {
-
+                    if (
+                            option == null ||
+                            option.isBlank()
+                    ) {
                         throw new IllegalArgumentException(
                                 "Multiple choice options cannot be blank"
                         );
@@ -792,105 +765,105 @@ public class QuestionGeneratorService {
                 }
 
                 if (distinctOptions.size() != 4) {
-
                     throw new IllegalArgumentException(
                             "Multiple choice options must all be different"
                     );
                 }
 
-                if (question.correctOptionIndex() == null) {
-
+                if (
+                        question.correctOptionIndex() == null
+                ) {
                     throw new IllegalArgumentException(
                             "Correct option index is missing"
                     );
                 }
 
-                if (question.correctOptionIndex() < 0 ||
-                        question.correctOptionIndex() >= 4) {
-
+                if (
+                        question.correctOptionIndex() < 0 ||
+                        question.correctOptionIndex() >= 4
+                ) {
                     throw new IllegalArgumentException(
                             "Correct option index must be between 0 and 3"
                     );
                 }
 
-                if (question.correctAnswer() != null) {
-
+                if (
+                        question.correctAnswer() != null
+                ) {
                     throw new IllegalArgumentException(
                             "Multiple choice correctAnswer must be null"
                     );
                 }
             }
 
-            /*
-             * ----------------------------------------------------
-             * TRUE / FALSE
-             * ----------------------------------------------------
-             */
-
             case TRUE_FALSE -> {
 
-                if (question.question().contains("?")) {
-
+                if (
+                        question.question()
+                                .contains("?")
+                ) {
                     throw new IllegalArgumentException(
                             "True/False must be a statement, not a question"
                     );
                 }
 
-                if (question.options() == null ||
+                if (
+                        question.options() == null ||
                         question.options().size() != 2 ||
                         !question.options().contains("True") ||
-                        !question.options().contains("False")) {
-
+                        !question.options().contains("False")
+                ) {
                     throw new IllegalArgumentException(
                             "True/False options must be True and False"
                     );
                 }
 
-                if (question.correctOptionIndex() != null) {
-
+                if (
+                        question.correctOptionIndex() != null
+                ) {
                     throw new IllegalArgumentException(
                             "True/False correctOptionIndex must be null"
                     );
                 }
 
-                if (question.correctAnswer() == null ||
-                        (!question.correctAnswer()
-                                .equalsIgnoreCase("True") &&
-                         !question.correctAnswer()
-                                .equalsIgnoreCase("False"))) {
-
+                if (
+                        question.correctAnswer() == null ||
+                        (
+                                !question.correctAnswer()
+                                        .equalsIgnoreCase("True") &&
+                                !question.correctAnswer()
+                                        .equalsIgnoreCase("False")
+                        )
+                ) {
                     throw new IllegalArgumentException(
                             "True/False answer must be True or False"
                     );
                 }
             }
 
-            /*
-             * ----------------------------------------------------
-             * SHORT ANSWER
-             * ----------------------------------------------------
-             */
-
             case SHORT_ANSWER -> {
 
-                if (question.options() == null ||
-                        !question.options().isEmpty()) {
-
+                if (
+                        question.options() == null ||
+                        !question.options().isEmpty()
+                ) {
                     throw new IllegalArgumentException(
                             "Short answer options must be empty"
                     );
                 }
 
-                if (question.correctOptionIndex() != null) {
-
+                if (
+                        question.correctOptionIndex() != null
+                ) {
                     throw new IllegalArgumentException(
                             "Short answer correctOptionIndex must be null"
                     );
                 }
 
-                if (question.correctAnswer() == null ||
-                        question.correctAnswer().isBlank()) {
-
+                if (
+                        question.correctAnswer() == null ||
+                        question.correctAnswer().isBlank()
+                ) {
                     throw new IllegalArgumentException(
                             "Short answer correctAnswer is missing"
                     );
@@ -903,9 +876,6 @@ public class QuestionGeneratorService {
      * ------------------------------------------------------------
      * SHORT ANSWER EVALUATION
      * ------------------------------------------------------------
-     *
-     * Ici, Qwen ne joue pas seulement le rôle d'un correcteur.
-     * Il agit comme un tuteur.
      */
 
     public AnswerEvaluation evaluateShortAnswer(
@@ -1017,8 +987,9 @@ public class QuestionGeneratorService {
                 question, not simply tell them whether they were right
                 or wrong.
 
-                Even when the answer receives 100%, provide a useful
-                explanation reinforcing WHY the answer is correct.
+                Even when the answer receives the maximum score,
+                provide a useful explanation reinforcing WHY the answer
+                is correct.
 
                 However, do not add unnecessary information merely to
                 make the feedback longer.
