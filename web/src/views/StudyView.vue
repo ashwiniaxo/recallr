@@ -83,6 +83,7 @@ const loadingSummary = ref(false)
  */
 
 const loading = ref(false)
+
 const submitting = ref(false)
 
 const error =
@@ -265,7 +266,6 @@ async function loadSessionSummary() {
 function resetAnswer() {
   selectedOptionIndex.value = null
   textAnswer.value = ''
-
   answerResult.value = null
   answerError.value = ''
 }
@@ -287,9 +287,7 @@ function nextQuestion() {
 
 function restartSession() {
   session.value = null
-
   sessionStatus.value = null
-
   currentQuestionIndex.value = 0
 
   resetAnswer()
@@ -458,9 +456,7 @@ function questionTypeLabel(
 
           <h1>
             Question
-            {{
-              currentQuestionIndex + 1
-            }}
+            {{ currentQuestionIndex + 1 }}
             /
             {{ session.questionCount }}
           </h1>
@@ -535,7 +531,7 @@ function questionTypeLabel(
           </label>
         </div>
 
-        <!-- TRUE FALSE -->
+        <!-- TRUE / FALSE -->
 
         <div
           v-else-if="
@@ -628,38 +624,44 @@ function questionTypeLabel(
           :class="{
             correct:
               answerResult.correct,
+
             incorrect:
               !answerResult.correct,
           }"
         >
-          <h3>
-            {{
-              answerResult.correct
-                ? '✓ Bonne réponse'
-                : '✗ Réponse à revoir'
-            }}
-          </h3>
+          <div class="feedback-header">
+            <h3>
+              {{
+                answerResult.correct
+                  ? '✓ Bonne réponse'
+                  : '✗ Réponse à améliorer'
+              }}
+            </h3>
 
-          <p class="score">
-            Score :
-            {{ answerResult.score }} %
-          </p>
+            <span class="score">
+              {{ answerResult.score }} %
+            </span>
+          </div>
 
           <p
             v-if="answerResult.feedback"
+            class="feedback-summary"
           >
             {{ answerResult.feedback }}
           </p>
+
+          <!-- CE QUI EST BIEN COMPRIS -->
 
           <div
             v-if="
               answerResult.correctConcepts
                 ?.length
             "
+            class="feedback-section"
           >
-            <strong>
-              Concepts maîtrisés :
-            </strong>
+            <h4>
+              ✓ Ce que tu as bien compris
+            </h4>
 
             <ul>
               <li
@@ -674,15 +676,18 @@ function questionTypeLabel(
             </ul>
           </div>
 
+          <!-- CE QUI MANQUE -->
+
           <div
             v-if="
               answerResult.missingConcepts
                 ?.length
             "
+            class="feedback-section"
           >
-            <strong>
-              Concepts à revoir :
-            </strong>
+            <h4>
+              ⚠ Ce qu'il manquait
+            </h4>
 
             <ul>
               <li
@@ -697,14 +702,43 @@ function questionTypeLabel(
             </ul>
           </div>
 
+          <!-- CE QUI EST INCORRECT -->
+
+          <div
+            v-if="
+              answerResult.incorrectConcepts
+                ?.length
+            "
+            class="feedback-section"
+          >
+            <h4>
+              ✗ Ce qui est à corriger
+            </h4>
+
+            <ul>
+              <li
+                v-for="
+                  item in
+                  answerResult.incorrectConcepts
+                "
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+
+          <!-- EXPLICATION -->
+
           <div
             v-if="
               answerResult.explanation
             "
+            class="feedback-section"
           >
-            <strong>
-              Explication :
-            </strong>
+            <h4>
+              💡 Explication
+            </h4>
 
             <p>
               {{
@@ -713,14 +747,39 @@ function questionTypeLabel(
             </p>
           </div>
 
+          <!-- COMMENT AMÉLIORER -->
+
+          <div
+            v-if="
+              answerResult.howToImprove
+            "
+            class="feedback-section"
+          >
+            <h4>
+              📝 Comment améliorer ta réponse
+            </h4>
+
+            <p>
+              {{
+                answerResult.howToImprove
+              }}
+            </p>
+          </div>
+
+          <!-- RÉPONSE COMPLÈTE -->
+
           <div
             v-if="
               answerResult.expectedAnswer
             "
+            class="
+              feedback-section
+              expected-answer
+            "
           >
-            <strong>
-              Réponse attendue :
-            </strong>
+            <h4>
+              ✨ Exemple de réponse complète
+            </h4>
 
             <p>
               {{
@@ -1011,9 +1070,13 @@ button:disabled {
   margin-top: 1rem;
 }
 
+/*
+ * FEEDBACK
+ */
+
 .feedback {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   margin-top: 1.5rem;
   padding: 1.5rem;
   border: 1px solid #ddd;
@@ -1028,22 +1091,68 @@ button:disabled {
   border-color: #d49a9a;
 }
 
-.feedback h3,
-.feedback p {
-  margin-top: 0;
+.feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.feedback ul {
-  margin-bottom: 0;
+.feedback-header h3 {
+  margin: 0;
 }
 
 .score {
+  flex-shrink: 0;
   font-weight: 700;
+}
+
+.feedback-summary {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.feedback-section {
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.feedback-section h4 {
+  margin: 0 0 0.75rem;
+}
+
+.feedback-section p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.feedback-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.feedback-section li {
+  margin-bottom: 0.4rem;
+  line-height: 1.5;
+}
+
+.feedback-section li:last-child {
+  margin-bottom: 0;
+}
+
+.expected-answer {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
 }
 
 .error {
   color: #b42318;
 }
+
+/*
+ * SESSION SUMMARY
+ */
 
 .session-finished {
   margin-top: 2rem;
@@ -1112,6 +1221,11 @@ button:disabled {
   }
 
   .session-header {
+    flex-direction: column;
+  }
+
+  .feedback-header {
+    align-items: flex-start;
     flex-direction: column;
   }
 }

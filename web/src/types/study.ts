@@ -70,6 +70,8 @@ export interface AnswerResult {
   expectedAnswer: string
   correctConcepts: string[]
   missingConcepts: string[]
+  incorrectConcepts: string[]
+  howToImprove: string
 }
 
 export interface StudySessionStatus {

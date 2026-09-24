@@ -9,6 +9,8 @@ public record AnswerEvaluation(
         String explanation,
         String expectedAnswer,
         List<String> correctConcepts,
-        List<String> missingConcepts
+        List<String> missingConcepts,
+        List<String> incorrectConcepts,
+        String howToImprove
 ) {
 }

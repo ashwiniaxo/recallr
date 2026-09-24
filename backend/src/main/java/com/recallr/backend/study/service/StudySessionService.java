@@ -389,17 +389,19 @@ public class StudySessionService {
                         question.correctOptionIndex()
                 );
 
-        return new AnswerResult(
-                correct,
-                correct ? 100 : 0,
-                correct
-                        ? "Correct!"
-                        : "Incorrect.",
-                question.explanation(),
-                expectedAnswer,
-                List.of(),
-                List.of()
-        );
+                return new AnswerResult(
+                        correct,
+                        correct ? 100 : 0,
+                        correct
+                                ? "Correct!"
+                                : "Incorrect.",
+                        question.explanation(),
+                        expectedAnswer,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        ""
+                );
     }
 
     private AnswerResult evaluateTrueFalse(
@@ -440,7 +442,9 @@ public class StudySessionService {
                 question.explanation(),
                 question.correctAnswer(),
                 List.of(),
-                List.of()
+                List.of(),
+                List.of(),
+                ""
         );
     }
 
@@ -483,7 +487,9 @@ public class StudySessionService {
                 evaluation.explanation(),
                 evaluation.expectedAnswer(),
                 evaluation.correctConcepts(),
-                evaluation.missingConcepts()
+                evaluation.missingConcepts(),
+                evaluation.incorrectConcepts(),
+                evaluation.howToImprove()
         );
     }
 
