@@ -23,6 +23,9 @@ export type QuestionType =
   | 'MULTIPLE_CHOICE'
   | 'TRUE_FALSE'
   | 'SHORT_ANSWER'
+  | 'CASE_STUDY'
+  | 'ERROR_ANALYSIS'
+  | 'COMPARISON'
 
 export interface StudyQuestion {
   questionId: string

@@ -37,10 +37,48 @@ const questionCount = ref(5)
 
 const selectedTypes =
   ref<QuestionType[]>([
-    'MULTIPLE_CHOICE',
-    'TRUE_FALSE',
     'SHORT_ANSWER',
+    'CASE_STUDY',
+    'ERROR_ANALYSIS',
+    'COMPARISON',
   ])
+
+const questionTypeOptions: {
+  value: QuestionType
+  label: string
+  description: string
+}[] = [
+  {
+    value: 'CASE_STUDY',
+    label: 'Mise en situation',
+    description: 'Applique les notions à un cas concret et justifie ta décision.',
+  },
+  {
+    value: 'ERROR_ANALYSIS',
+    label: 'Analyse d’erreur',
+    description: 'Repère une erreur de raisonnement, corrige-la et explique pourquoi.',
+  },
+  {
+    value: 'COMPARISON',
+    label: 'Comparaison argumentée',
+    description: 'Compare des approches et défends celle qui convient au contexte.',
+  },
+  {
+    value: 'SHORT_ANSWER',
+    label: 'Réponse courte',
+    description: 'Explique le raisonnement avec tes propres mots.',
+  },
+  {
+    value: 'MULTIPLE_CHOICE',
+    label: 'Choix multiple',
+    description: 'Distingue la bonne réponse de confusions plausibles.',
+  },
+  {
+    value: 'TRUE_FALSE',
+    label: 'Vrai ou faux',
+    description: 'Évalue une affirmation et ses implications.',
+  },
+]
 
 /*
  * SESSION
@@ -56,6 +94,25 @@ const currentQuestion = computed(() =>
     currentQuestionIndex.value
   ] ?? null,
 )
+
+const isWrittenQuestion = computed(() =>
+  currentQuestion.value !== null &&
+  currentQuestion.value.type !== 'MULTIPLE_CHOICE' &&
+  currentQuestion.value.type !== 'TRUE_FALSE',
+)
+
+const answerGuidance = computed(() => {
+  switch (currentQuestion.value?.type) {
+    case 'CASE_STUDY':
+      return 'Relie les faits du cas aux notions du cours, justifie ta décision et explique les conséquences.'
+    case 'ERROR_ANALYSIS':
+      return 'Identifie l’erreur précise, propose une correction et explique le raisonnement qui la justifie.'
+    case 'COMPARISON':
+      return 'Appuie ta comparaison sur des critères précis et justifie ta conclusion dans le contexte donné.'
+    default:
+      return 'Réponds à chaque partie de la question et explique pourquoi. Une définition seule ne suffit pas si une application est demandée.'
+  }
+})
 
 /*
  * RÉPONSE DE L'UTILISATEUR
@@ -181,11 +238,10 @@ async function validateAnswer() {
   }
 
   /*
-   * SHORT ANSWER
+   * RÉPONSE RÉDIGÉE
    */
   if (
-    currentQuestion.value.type ===
-      'SHORT_ANSWER' &&
+    isWrittenQuestion.value &&
     !textAnswer.value.trim()
   ) {
     answerError.value =
@@ -313,16 +369,7 @@ const isLastQuestion = computed(() => {
 function questionTypeLabel(
   type: QuestionType,
 ) {
-  switch (type) {
-    case 'MULTIPLE_CHOICE':
-      return 'Choix multiple'
-
-    case 'TRUE_FALSE':
-      return 'Vrai ou faux'
-
-    case 'SHORT_ANSWER':
-      return 'Réponse courte'
-  }
+  return questionTypeOptions.find((option) => option.value === type)?.label ?? type
 }
 </script>
 
@@ -345,11 +392,11 @@ function questionTypeLabel(
         Session d'étude
       </p>
 
-      <h1>Commencer à réviser</h1>
+      <h1>Mettre ta compréhension à l’épreuve</h1>
 
       <p>
-        Choisis le nombre et les types
-        de questions que tu veux pratiquer.
+        Entraîne-toi à appliquer les notions, à analyser des situations
+        et à justifier tes réponses à partir de ton cours.
       </p>
 
       <div class="setup-section">
@@ -393,33 +440,28 @@ function questionTypeLabel(
         </h2>
 
         <div class="type-options">
-          <label>
+          <label
+            v-for="option in questionTypeOptions"
+            :key="option.value"
+          >
             <input
               v-model="selectedTypes"
               type="checkbox"
-              value="MULTIPLE_CHOICE"
+              :value="option.value"
+              :disabled="loading"
             >
-            Choix multiple
-          </label>
-
-          <label>
-            <input
-              v-model="selectedTypes"
-              type="checkbox"
-              value="TRUE_FALSE"
-            >
-            Vrai ou faux
-          </label>
-
-          <label>
-            <input
-              v-model="selectedTypes"
-              type="checkbox"
-              value="SHORT_ANSWER"
-            >
-            Réponse courte
+            <span>
+              <strong>{{ option.label }}</strong>
+              <small>{{ option.description }}</small>
+            </span>
           </label>
         </div>
+
+        <p class="study-expectations">
+          Pour réussir une réponse rédigée : au moins 85 %, avec les
+          éléments essentiels et un raisonnement juste. Les réponses
+          partielles gardent des points et indiquent quoi retravailler.
+        </p>
       </div>
 
       <p
@@ -470,6 +512,11 @@ function questionTypeLabel(
           }}
         </span>
       </header>
+
+      <p v-if="session.questionCount < questionCount" role="status">
+        {{ session.questionCount }} questions sur {{ questionCount }} ont pu être
+        générées. Tu peux commencer avec celles-ci.
+      </p>
 
       <!-- PROGRESSION -->
 
@@ -579,21 +626,23 @@ function questionTypeLabel(
           </label>
         </div>
 
-        <!-- SHORT ANSWER -->
+        <!-- RÉPONSE RÉDIGÉE -->
 
-        <textarea
-          v-else-if="
-            currentQuestion.type ===
-            'SHORT_ANSWER'
-          "
-          v-model="textAnswer"
-          class="answer-input"
-          rows="6"
-          placeholder="Écris ta réponse..."
-          :disabled="
-            answerResult !== null
-          "
-        />
+        <div v-else-if="isWrittenQuestion">
+          <p id="answer-guidance" class="answer-guidance">
+            {{ answerGuidance }}
+          </p>
+
+          <textarea
+            v-model="textAnswer"
+            class="answer-input"
+            :rows="currentQuestion.type === 'SHORT_ANSWER' ? 6 : 9"
+            placeholder="Développe ta réponse et justifie ton raisonnement..."
+            :aria-label="questionTypeLabel(currentQuestion.type)"
+            aria-describedby="answer-guidance"
+            :disabled="answerResult !== null || submitting"
+          />
+        </div>
 
         <p
           v-if="answerError"
@@ -633,7 +682,7 @@ function questionTypeLabel(
             <h3>
               {{
                 answerResult.correct
-                  ? '✓ Bonne réponse'
+                  ? '✓ Réponse réussie'
                   : '✗ Réponse à améliorer'
               }}
             </h3>
@@ -882,7 +931,7 @@ function questionTypeLabel(
               </strong>
 
               <span>
-                Réponses incorrectes
+                Réponses à retravailler
               </span>
             </div>
           </div>
@@ -958,6 +1007,34 @@ function questionTypeLabel(
   gap: 1rem;
 }
 
+.type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.type-options label {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+}
+
+.type-options strong,
+.type-options small {
+  display: block;
+}
+
+.type-options small {
+  margin-top: 0.35rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.study-expectations,
+.answer-guidance {
+  color: #555;
+  line-height: 1.6;
+}
+
 .choice-row label,
 .type-options label {
   display: flex;
@@ -1002,6 +1079,7 @@ function questionTypeLabel(
 .question-card h2 {
   margin-top: 0;
   line-height: 1.4;
+  white-space: pre-wrap;
 }
 
 .options {
@@ -1216,6 +1294,10 @@ button:disabled {
 }
 
 @media (max-width: 600px) {
+  .type-options {
+    grid-template-columns: 1fr;
+  }
+
   .summary-stats {
     grid-template-columns: 1fr;
   }

@@ -1,9 +1,10 @@
 package com.recallr.backend.study.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,14 +33,10 @@ public class StudySessionService {
      * Évite une boucle infinie si Qwen n'arrive
      * vraiment pas à générer certaines questions.
      *
-     * Exemple :
-     * 5 questions demandées
-     * -> maximum 25 générations complètes.
-     *
-     * Chaque génération possède elle-même jusqu'à
-     * 3 essais dans QuestionGeneratorService.
+     * Chaque question utilise un seul appel au modèle.
+     * Une session dispose de deux tentatives supplémentaires.
      */
-    private static final int SESSION_ATTEMPT_MULTIPLIER = 5;
+    private static final int EXTRA_GENERATION_ATTEMPTS = 2;
 
     private final StudyMaterialRepository studyMaterialRepository;
     private final QuestionGeneratorService questionGeneratorService;
@@ -75,14 +72,15 @@ public class StudySessionService {
             StudySessionRequest request
     ) {
 
-        if (request.questionCount() <= 0) {
+        if (request.questionCount() <= 0 || request.questionCount() > 15) {
             throw new IllegalArgumentException(
-                    "Question count must be greater than 0"
+                    "Question count must be between 1 and 15"
             );
         }
 
         if (request.questionTypes() == null ||
-                request.questionTypes().isEmpty()) {
+                request.questionTypes().isEmpty() ||
+                request.questionTypes().stream().anyMatch(Objects::isNull)) {
 
             throw new IllegalArgumentException(
                     "At least one question type is required"
@@ -116,16 +114,17 @@ public class StudySessionService {
         List<StudyQuestion> publicQuestions =
                 new ArrayList<>();
 
+        List<QuestionType> questionTypes = new ArrayList<>(
+                request.questionTypes().stream().distinct().toList()
+        );
+        Collections.shuffle(questionTypes);
+
         /*
          * Nombre maximum de générations complètes
          * autorisées pour construire cette session.
          */
         int maxGenerationAttempts =
-                Math.max(
-                        request.questionCount()
-                                * SESSION_ATTEMPT_MULTIPLIER,
-                        request.questionCount()
-                );
+                request.questionCount() + EXTRA_GENERATION_ATTEMPTS;
 
         int generationAttempts = 0;
         int materialIndex = 0;
@@ -147,13 +146,8 @@ public class StudySessionService {
             generationAttempts++;
 
             QuestionType type =
-                    request.questionTypes().get(
-                            ThreadLocalRandom
-                                    .current()
-                                    .nextInt(
-                                            request.questionTypes()
-                                                    .size()
-                                    )
+                    questionTypes.get(
+                            (generationAttempts - 1) % questionTypes.size()
                     );
 
             System.out.println(
@@ -177,7 +171,11 @@ public class StudySessionService {
                         questionGeneratorService
                                 .generateQuestion(
                                         material.getId(),
-                                        type
+                                        type,
+                                        publicQuestions.stream()
+                                                .filter(previous -> previous.materialId().equals(material.getId()))
+                                                .map(StudyQuestion::question)
+                                                .toList()
                                 );
 
                 String questionId =
@@ -251,10 +249,10 @@ public class StudySessionService {
          * Recallr n'a pas réussi à obtenir suffisamment
          * de questions valides.
          *
-         * On ne crée pas une session incomplète.
+         * On conserve les questions obtenues et refuse uniquement
+         * une session qui ne contient aucune question utilisable.
          */
-        if (publicQuestions.size()
-                < request.questionCount()) {
+        if (publicQuestions.isEmpty()) {
 
             throw new RuntimeException(
                     "Unable to generate enough valid questions. "
@@ -316,7 +314,7 @@ public class StudySessionService {
         /*
          * On évalue d'abord.
          *
-         * Si Qwen échoue pendant une SHORT_ANSWER,
+         * Si Qwen échoue pendant une réponse rédigée,
          * la question n'est donc PAS marquée comme répondue.
          */
         AnswerResult result =
@@ -334,8 +332,8 @@ public class StudySessionService {
                                     request
                             );
 
-                    case SHORT_ANSWER ->
-                            evaluateShortAnswer(
+                    case SHORT_ANSWER, CASE_STUDY, ERROR_ANALYSIS, COMPARISON ->
+                            evaluateWrittenAnswer(
                                     question,
                                     request
                             );
@@ -448,7 +446,7 @@ public class StudySessionService {
         );
     }
 
-    private AnswerResult evaluateShortAnswer(
+    private AnswerResult evaluateWrittenAnswer(
             ActiveQuestion question,
             AnswerRequest request
     ) {
@@ -474,7 +472,7 @@ public class StudySessionService {
 
         AnswerEvaluation evaluation =
                 questionGeneratorService
-                        .evaluateShortAnswer(
+                        .evaluateWrittenAnswer(
                                 material,
                                 question,
                                 request.answer()
