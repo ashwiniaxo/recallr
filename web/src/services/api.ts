@@ -162,6 +162,22 @@ export async function updateStudyMaterial(
   return response.json()
 }
 
+export async function deleteStudyMaterial(
+  sectionId: number,
+  materialId: number,
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/sections/${sectionId}/materials/${materialId}`,
+    {
+      method: 'DELETE',
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to delete study material')
+  }
+}
+
 export async function submitAnswer(
   sessionId: string,
   questionId: string,

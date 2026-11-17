@@ -3,9 +3,11 @@ package com.recallr.backend.studymaterial.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.recallr.backend.coursesection.model.CourseSection;
 import com.recallr.backend.coursesection.repository.CourseSectionRepository;
+import com.recallr.backend.progress.repository.ConceptProgressRepository;
 import com.recallr.backend.studymaterial.model.StudyMaterial;
 import com.recallr.backend.studymaterial.repository.StudyMaterialRepository;
 
@@ -14,13 +16,16 @@ public class StudyMaterialService {
 
     private final StudyMaterialRepository studyMaterialRepository;
     private final CourseSectionRepository courseSectionRepository;
+    private final ConceptProgressRepository conceptProgressRepository;
 
     public StudyMaterialService(
             StudyMaterialRepository studyMaterialRepository,
-            CourseSectionRepository courseSectionRepository
+            CourseSectionRepository courseSectionRepository,
+            ConceptProgressRepository conceptProgressRepository
     ) {
         this.studyMaterialRepository = studyMaterialRepository;
         this.courseSectionRepository = courseSectionRepository;
+        this.conceptProgressRepository = conceptProgressRepository;
     }
 
     public List<StudyMaterial> getMaterialsBySection(Long sectionId) {
@@ -75,6 +80,7 @@ public class StudyMaterialService {
         );
     }
 
+    @Transactional
     public void deleteMaterial(
             Long sectionId,
             Long materialId
@@ -94,6 +100,8 @@ public class StudyMaterialService {
             );
         }
 
+        conceptProgressRepository.findByStudyMaterialId(materialId)
+                .ifPresent(conceptProgressRepository::delete);
         studyMaterialRepository.delete(existingMaterial);
     }
 }

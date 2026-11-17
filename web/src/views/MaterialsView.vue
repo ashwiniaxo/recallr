@@ -9,6 +9,7 @@ import { useRoute } from 'vue-router'
 
 import {
   createStudyMaterial,
+  deleteStudyMaterial,
   getStudyMaterials,
   updateStudyMaterial,
 } from '../services/api'
@@ -33,6 +34,8 @@ const materials =
 
 const loading = ref(true)
 const saving = ref(false)
+const deletingMaterialId =
+  ref<number | null>(null)
 
 const error = ref('')
 
@@ -163,6 +166,51 @@ async function saveMaterial() {
   }
 }
 
+async function removeMaterial(
+  material: StudyMaterial,
+) {
+  if (
+    saving.value ||
+    deletingMaterialId.value !== null
+  ) {
+    return
+  }
+
+  const confirmed = window.confirm(
+    `Supprimer le concept "${material.concept}" et sa progression ?`,
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  deletingMaterialId.value = material.id
+  error.value = ''
+
+  try {
+    await deleteStudyMaterial(
+      sectionId.value,
+      material.id,
+    )
+
+    materials.value =
+      materials.value.filter(
+        (item) => item.id !== material.id,
+      )
+
+    if (editingMaterialId.value === material.id) {
+      closeForm()
+    }
+  } catch (err) {
+    console.error(err)
+
+    error.value =
+      'Impossible de supprimer ce concept. Réessaie.'
+  } finally {
+    deletingMaterialId.value = null
+  }
+}
+
 onMounted(loadMaterials)
 </script>
 
@@ -249,7 +297,7 @@ onMounted(loadMaterials)
 
         <button
           type="button"
-          :disabled="saving"
+          :disabled="saving || deletingMaterialId !== null"
           @click="saveMaterial"
         >
           {{
@@ -310,15 +358,30 @@ onMounted(loadMaterials)
             </h2>
           </div>
 
-          <button
-            type="button"
-            class="secondary-button"
-            @click="
-              openEditForm(material)
-            "
-          >
-            Modifier
-          </button>
+          <div class="material-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              :disabled="saving || deletingMaterialId !== null"
+              @click="openEditForm(material)"
+            >
+              Modifier
+            </button>
+
+            <button
+              type="button"
+              class="delete-button"
+              :aria-label="`Supprimer le concept ${material.concept}`"
+              :disabled="saving || deletingMaterialId !== null"
+              @click="removeMaterial(material)"
+            >
+              {{
+                deletingMaterialId === material.id
+                  ? 'Suppression...'
+                  : 'Supprimer'
+              }}
+            </button>
+          </div>
         </div>
 
         <p class="material-content">
@@ -373,9 +436,14 @@ button:disabled {
   opacity: 0.6;
 }
 
-.secondary-button {
+.secondary-button,
+.delete-button {
   border: 1px solid #ddd;
   background: white;
+}
+
+.delete-button {
+  color: #b42318;
 }
 
 .material-form {
@@ -439,6 +507,12 @@ button:disabled {
 
 .material-header h2 {
   margin: 0.25rem 0 0;
+}
+
+.material-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .material-id {
