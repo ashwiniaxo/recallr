@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
-  onMounted,
+  watch,
   ref,
 } from 'vue'
 
@@ -11,13 +11,17 @@ import {
   createStudyMaterial,
   deleteStudyMaterial,
   getStudyMaterials,
+  getSectionProgress,
   updateStudyMaterial,
 } from '../services/api'
 
 import type {
+  ConceptProgress,
   StudyMaterial,
   StudyMaterialRequest,
 } from '../types/study'
+
+import ConceptMastery from '../components/ConceptMastery.vue'
 
 const route = useRoute()
 
@@ -33,6 +37,27 @@ const materials =
   ref<StudyMaterial[]>([])
 
 const loading = ref(true)
+const progressLoading = ref(true)
+const progressError = ref(false)
+const conceptProgress = ref<ConceptProgress[]>([])
+const progressByMaterial = computed(() => new Map(
+  conceptProgress.value.map((progress) => [progress.materialId, progress]),
+))
+
+async function loadProgress() {
+  progressLoading.value = true
+  progressError.value = false
+  conceptProgress.value = []
+  try {
+    const progress = await getSectionProgress(sectionId.value)
+    conceptProgress.value = progress.concepts
+  } catch (err) {
+    console.error(err)
+    progressError.value = true
+  } finally {
+    progressLoading.value = false
+  }
+}
 const saving = ref(false)
 const deletingMaterialId =
   ref<number | null>(null)
@@ -211,7 +236,10 @@ async function removeMaterial(
   }
 }
 
-onMounted(loadMaterials)
+watch(sectionId, () => {
+  void loadMaterials()
+  void loadProgress()
+}, { immediate: true })
 </script>
 
 <template>
@@ -235,6 +263,7 @@ onMounted(loadMaterials)
           Ajoute les concepts que Recallr
           utilisera pour générer tes questions.
         </p>
+        <p class="progress-hint">La maîtrise reflète les résultats de tes réponses pendant les sessions d’étude.</p>
       </div>
 
       <button
@@ -253,6 +282,10 @@ onMounted(loadMaterials)
     </p>
 
     <!-- FORMULAIRE -->
+    <p v-if="progressError" class="progress-notice" role="status">
+      La progression n’a pas pu être chargée.
+      <button type="button" class="secondary-button" @click="loadProgress">Réessayer</button>
+    </p>
 
     <section
       v-if="showForm"
@@ -384,6 +417,11 @@ onMounted(loadMaterials)
           </div>
         </div>
 
+        <ConceptMastery
+          :progress="progressByMaterial.get(material.id)"
+          :loading="progressLoading"
+          :error="progressError"
+        />
         <p class="material-content">
           {{ material.content }}
         </p>
@@ -416,6 +454,9 @@ onMounted(loadMaterials)
 .materials-header h1 {
   margin: 0.25rem 0 0.5rem;
 }
+
+.progress-hint { color: var(--muted, #6d687f); font-size: .8rem; line-height: 1.6; }
+.progress-notice { color: var(--muted, #6d687f); font-size: .85rem; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
 
 .eyebrow {
   margin: 0;
